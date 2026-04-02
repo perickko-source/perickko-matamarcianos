@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Matamarcianos HTML5</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      display: flex; justify-content: center; align-items: center;
+      height: 100vh; overflow: hidden;
+      touch-action: none;
+      -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+    }
+    canvas {
+      display: block; width: auto; height: auto;
+      max-width: 95vw; max-height: 95vh;
+      aspect-ratio: 2 / 3;
+      image-rendering: pixelated;
+      touch-action: none; background: #000;
+    }
+    #overlay, #rotate-warning {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      background: rgba(0,0,0,0.9); color: #fff; font-family: monospace; cursor: pointer; z-index: 10;
+      text-align: center; padding: 20px;
+    }
+    #overlay h1 { margin: 0 0 10px 0; font-size: 28px; text-shadow: 0 0 10px #0af; }
+    #overlay p { margin: 5px 0; font-size: 14px; color: #aaa; }
+    #rotate-warning { display: none; z-index: 20; }
+    #rotate-warning .icon { font-size: 48px; margin-bottom: 15px; animation: spin 2s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(90deg); } }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<canvas id="game" width="400" height="600"></canvas>
+
+<div id="overlay">
+  <h1>👾 MATAMARCIANOS 👾</h1>
+  <p>Toca para empezar</p>
+  <p><small>Imágenes: valefor.png, nandors.png, pepino.png, koala.png, nave.png</small></p>
+</div>
+
+<div id="rotate-warning">
+  <div class="icon">📱</div>
+  <p>Por favor, gira tu dispositivo<br>a modo <strong>VERTICAL</strong></p>
+</div>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = 400, H = 600;
+  canvas.width = W; canvas.height = H;
+
+  if (screen.orientation?.lock) screen.orientation.lock('portrait').catch(() => {});
+
+  const warning = document.getElementById('rotate-warning');
+  function checkOrientation() {
+    warning.style.display = window.innerWidth > window.innerHeight ? 'flex' : 'none';
+  }
+  window.addEventListener('resize', checkOrientation);
+  window.addEventListener('orientationchange', checkOrientation);
+  checkOrientation();
+
+  // 🖼️ CARGA DE IMÁGENES
+  const valeforImg = new Image(); valeforImg.src = 'valefor.png';
+  const nandorsImg = new Image(); nandorsImg.src = 'nandors.png';
+  const pepinoImg = new Image(); pepinoImg.src = 'pepino.png';
+  const koalaImg = new Image(); koalaImg.src = 'koala.png'; // 🆕 Nueva nave enemiga
+  const playerImg = new Image(); playerImg.src = 'nave.png';
+
+  // 🔊 AUDIO
+  let audioCtx = null;
+  function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function playSound(type) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    const t = audioCtx.currentTime;
+    if (type === 'playerShoot') {
+      osc.type = 'square'; osc.frequency.setValueAtTime(880, t);
+      osc.frequency.exponentialRampToValueAtTime(220, t + 0.1);
+      gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+      osc.start(t); osc.stop(t + 0.1);
+    } else if (type === 'alienShoot') {
+      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, t);
+      osc.frequency.exponentialRampToValueAtTime(100, t + 0.15);
+      gain.gain.setValueAtTime(0.05, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+      osc.start(t); osc.stop(t + 0.15);
+    } else if (type === 'explode') {
+      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t);
+      osc.frequency.exponentialRampToValueAtTime(20, t + 0.3);
+      gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+      osc.start(t); osc.stop(t + 0.3);
+    } else if (type === 'dive') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(400, t);
+      osc.frequency.linearRampToValueAtTime(1200, t + 0.3);
+      gain.gain.setValueAtTime(0.15, t);
+      gain.gain.linearRampToValueAtTime(0, t + 0.3);
+      osc.start(t); osc.stop(t + 0.3);
+    }
+  }
+
+  // 🎮 ESTADO
+  let gameRunning = false;
+  let score = 0;
+  const keys = {};
+  window.addEventListener('keydown', e => keys[e.code] = true);
+  window.addEventListener('keyup', e => keys[e.code] = false);
+
+  let isTouching = false;
+  canvas.addEventListener('touchstart', (e) => {
+    if (!gameRunning) return;
+    isTouching = true;
+    updateTouch(e.touches[0].clientX);
+  }, { passive: false });
+  canvas.addEventListener('touchmove', (e) => {
+    if (!gameRunning || !isTouching) return;
+    e.preventDefault();
+    updateTouch(e.touches[0].clientX);
+  }, { passive: false });
+  canvas.addEventListener('touchend', () => { isTouching = false; });
+  canvas.addEventListener('touchcancel', () => { isTouching = false; });
+
+  function updateTouch(clientX) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const gameX = (clientX - rect.left) * scaleX;
+    player.x = Math.max(0, Math.min(W - player.w, gameX - player.w / 2));
+  }
+
+  // 🌟 ESTRELLAS
+  const stars = [];
+  for (let i = 0; i < 120; i++) stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 0.5, speed: Math.random() * 0.6 + 0.2 });
+
+  // 🚀 JUGADOR
+  const player = { x: W / 2 - 32, y: H - 80, w: 64, h: 64, speed: 5, cooldown: 0, autoCD: 0 };
+  const pBullets = [], aBullets = [];
+  const particles = [];
+
+  // 👾 ENEMIGOS & OLEADAS
+  const ENEMY_SIZE = 70;
+  let enemies = [];
+  let waveCount = 0;
+  let time = 0;
+  let alienShootTimer = 0; 
+
+  function spawnWave() {
+    waveCount++;
+    enemies = [];
+    const margin = 20;
+    const spacing = (W - margin * 2 - ENEMY_SIZE * 3) / 2;
+    
+    // 🎲 Selección de tipo de oleada
+    const randWave = Math.random();
+    let behaviorType;
+
+    if (randWave < 0.6) {
+      behaviorType = 'normal'; // 60%
+    } else if (randWave < 0.8) {
+      behaviorType = 'circle_left'; // 20%
+    } else {
+      behaviorType = 'circle_right'; // 20%
+    }
+
+    for (let i = 0; i < 3; i++) {
+      // 🎲 Asignación equitativa entre 4 tipos (25% cada uno)
+      const r = Math.random();
+      let type;
+      if (r < 0.25) type = 'valefor';
+      else if (r < 0.50) type = 'nandors';
+      else if (r < 0.75) type = 'pepino';
+      else type = 'koala';
+
+      let e = {
+        w: ENEMY_SIZE, h: ENEMY_SIZE,
+        alive: true,
+        type: type,
+        behavior: behaviorType
+      };
+
+      if (behaviorType === 'normal') {
+        e.x = margin + i * (ENEMY_SIZE + spacing);
+        e.y = -ENEMY_SIZE - (Math.random() * 100);
+        e.baseX = margin + i * (ENEMY_SIZE + spacing);
+        e.phase = i * 2.2;
+        e.vy = 0.5 + (waveCount * 0.04);
+        e.isDiving = false;
+        e.colorShift = 0;
+      } 
+      else if (behaviorType === 'circle_left') {
+        e.x = -80 - (i * 90); 
+        e.y = 300;
+        e.state = 'enter';
+        e.angle = Math.PI;
+        e.circleProgress = 0;
+        e.angularSpeed = 0.025;
+        e.attackSpeed = 3.2;
+        e.shootTimer = 0;
+      }
+      else if (behaviorType === 'circle_right') {
+        e.x = W + 80 + (i * 90);
+        e.y = 300;
+        e.state = 'enter_right';
+        e.angle = 0;
+        e.circleProgress = 0;
+        e.angularSpeed = 0.025;
+        e.attackSpeed = 3.2;
+        e.shootTimer = 0;
+      }
+      enemies.push(e);
+    }
+  }
+  spawnWave();
+
+  function rectIntersect(r1, r2) { return r1.x < r2.x + r2.w && r1.x + r1.w > r2.x && r1.y < r2.y + r2.h && r1.y + r1.h > r2.y; }
+  function createExplosion(x, y) {
+    for (let i = 0; i < 20; i++) particles.push({ x, y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, life: 30 + Math.random() * 10, color: `hsl(${Math.random() * 60 + 10}, 100%, 60%)` });
+  }
+
+  function update() {
+    time += 0.016;
+    
+    // 🎮 Movimiento jugador
+    if (!isTouching) {
+      if ((keys['ArrowLeft'] || keys['KeyA']) && player.x > 0) player.x -= player.speed;
+      if ((keys['ArrowRight'] || keys['KeyD']) && player.x < W - player.w) player.x += player.speed;
+    }
+    // 🔫 Disparo
+    if (isTouching && player.autoCD <= 0) {
+      pBullets.push({ x: player.x + player.w / 2 - 2, y: player.y, w: 4, h: 12, speed: 7 });
+      player.autoCD = 15; playSound('playerShoot');
+    }
+    if (player.autoCD > 0) player.autoCD--;
+    if (keys['Space'] && player.cooldown <= 0 && !isTouching) {
+      pBullets.push({ x: player.x + player.w / 2 - 2, y: player.y, w: 4, h: 12, speed: 7 });
+      player.cooldown = 15; playSound('playerShoot');
+    }
+    if (player.cooldown > 0) player.cooldown--;
+
+    // 👾 ACTUALIZAR ENEMIGOS
+    let activeCount = 0;
+    for (let e of enemies) {
+      if (!e.alive) continue;
+      activeCount++;
+
+      if (e.behavior === 'normal') {
+        e.x = e.baseX + Math.sin(time * 2.2 + e.phase) * 35;
+        if (e.x < 0) e.x = 0;
+        if (e.x + e.w > W) e.x = W - e.w;
+        e.y += e.vy;
+        
+        if (!e.isDiving && Math.random() < 0.005) {
+          e.isDiving = true;
+          e.vy *= 3.5;
+          playSound('dive');
+        }
+        if (e.isDiving) e.colorShift = Math.sin(time * 20) > 0 ? 1 : 0;
+      } 
+      else if (e.behavior === 'circle_left') {
+        if (e.state === 'enter') {
+          e.x += 3; 
+          if (e.x >= 100) { 
+            e.state = 'circle';
+            e.circleProgress = 0;
+            e.angle = Math.PI;
+          }
+        } 
+        else if (e.state === 'circle') {
+          e.circleProgress += e.angularSpeed;
+          e.angle = Math.PI - e.circleProgress; 
+          e.x = 200 + Math.cos(e.angle) * 100;
+          e.y = 300 + Math.sin(e.angle) * 100;
+          
+          if (e.circleProgress >= 4 * Math.PI) { 
+            e.state = 'attack';
+            playSound('dive'); 
+          }
+        } 
+        else if (e.state === 'attack') {
+          let dx = (player.x + player.w/2) - (e.x + e.w/2);
+          let dy = (player.y + player.h/2) - (e.y + e.h/2);
+          let dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist > 0) {
+            e.x += (dx/dist) * e.attackSpeed;
+            e.y += (dy/dist) * e.attackSpeed;
+          }
+          e.shootTimer++;
+          if (e.shootTimer > 35 && e.y < player.y - 40) {
+            aBullets.push({ x: e.x + e.w/2 - 2, y: e.y + e.h, w: 4, h: 12, speed: 4.5 });
+            playSound('alienShoot');
+            e.shootTimer = 0;
+          }
+          if (e.x < -150 || e.x > W + 150 || e.y > H + 150 || e.y < -150) e.alive = false;
+        }
+      }
+      else if (e.behavior === 'circle_right') {
+        if (e.state === 'enter_right') {
+          e.x -= 3; 
+          if (e.x <= 300) { 
+            e.state = 'circle';
+            e.circleProgress = 0;
+            e.angle = 0;
+          }
+        } 
+        else if (e.state === 'circle') {
+          e.circleProgress += e.angularSpeed;
+          e.angle = e.circleProgress; 
+          e.x = 200 + Math.cos(e.angle) * 100;
+          e.y = 300 + Math.sin(e.angle) * 100;
+          
+          if (e.circleProgress >= 4 * Math.PI) { 
+            e.state = 'attack';
+            playSound('dive');
+          }
+        } 
+        else if (e.state === 'attack') {
+          let dx = (player.x + player.w/2) - (e.x + e.w/2);
+          let dy = (player.y + player.h/2) - (e.y + e.h/2);
+          let dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist > 0) {
+            e.x += (dx/dist) * e.attackSpeed;
+            e.y += (dy/dist) * e.attackSpeed;
+          }
+          e.shootTimer++;
+          if (e.shootTimer > 35 && e.y < player.y - 40) {
+            aBullets.push({ x: e.x + e.w/2 - 2, y: e.y + e.h, w: 4, h: 12, speed: 4.5 });
+            playSound('alienShoot');
+            e.shootTimer = 0;
+          }
+          if (e.x < -150 || e.x > W + 150 || e.y > H + 150 || e.y < -150) e.alive = false;
+        }
+      }
+    }
+
+    // 🔻 Disparo global SOLO para oleadas normales
+    if (enemies.some(e => e.alive && e.behavior === 'normal')) {
+      alienShootTimer++;
+      if (alienShootTimer > 65) {
+        const targets = enemies.filter(e => e.alive && e.behavior === 'normal' && e.y > 0 && e.y < H - 100);
+        if (targets.length > 0) {
+          const shooter = targets[Math.floor(Math.random() * targets.length)];
+          aBullets.push({ x: shooter.x + shooter.w / 2 - 2, y: shooter.y + shooter.h, w: 4, h: 12, speed: 4 });
+          playSound('alienShoot');
+        }
+        alienShootTimer = 0;
+      }
+    }
+
+    // 💥 Balas
+    for (let i = pBullets.length - 1; i >= 0; i--) {
+      pBullets[i].y -= pBullets[i].speed;
+      if (pBullets[i].y < 0) pBullets.splice(i, 1);
+    }
+    for (let i = aBullets.length - 1; i >= 0; i--) {
+      aBullets[i].y += aBullets[i].speed;
+      if (aBullets[i].y > H) aBullets.splice(i, 1);
+    }
+
+    // 💥 Colisiones
+    for (let i = pBullets.length - 1; i >= 0; i--) {
+      for (let e of enemies) {
+        if (!e.alive) continue;
+        if (rectIntersect(pBullets[i], e)) {
+          e.alive = false;
+          createExplosion(e.x + e.w / 2, e.y + e.h / 2);
+          pBullets.splice(i, 1);
+          score += 100;
+          playSound('explode');
+          break;
+        }
+      }
+    }
+
+    // ✨ Partículas & 🌌 Estrellas
+    for (let i = particles.length - 1; i >= 0; i--) {
+      particles[i].x += particles[i].vx; particles[i].y += particles[i].vy; particles[i].life--;
+      if (particles[i].life <= 0) particles.splice(i, 1);
+    }
+    for (let s of stars) { s.y += s.speed; if (s.y > H) s.y = 0; }
+
+    if (activeCount === 0) spawnWave();
+  }
+
+  function draw() {
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    for (let s of stars) { ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill(); }
+
+    // 🚀 Jugador
+    if (playerImg.complete && playerImg.naturalWidth > 0) {
+      ctx.drawImage(playerImg, player.x, player.y, player.w, player.h);
+    } else {
+      ctx.fillStyle = '#0af'; 
+      ctx.fillRect(player.x, player.y, player.w, player.h);
+    }
+
+    // 👾 Enemigos
+    for (let e of enemies) {
+      if (!e.alive) continue;
+      let img;
+      if (e.type === 'valefor') img = valeforImg;
+      else if (e.type === 'nandors') img = nandorsImg;
+      else if (e.type === 'pepino') img = pepinoImg;
+      else img = koalaImg; // 🆕 Koala
+      
+      if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, e.x, e.y, e.w, e.h);
+      else {
+        // Fallbacks por tipo
+        if (e.type === 'valefor') ctx.fillStyle = '#f0a';
+        else if (e.type === 'nandors') ctx.fillStyle = '#0f0';
+        else if (e.type === 'pepino') ctx.fillStyle = '#a0f';
+        else ctx.fillStyle = '#bbb'; // Koala fallback (gris claro)
+        
+        if (e.behavior === 'normal' && e.isDiving && e.colorShift) ctx.fillStyle = '#ff0000';
+        ctx.fillRect(e.x, e.y, e.w, e.h);
+      }
+    }
+
+    // 🔫 Balas
+    ctx.fillStyle = '#ff0'; for (let b of pBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.fillStyle = '#f00'; for (let b of aBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
+
+    // 💥 Explosiones
+    for (let p of particles) {
+      ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 40;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+    }
+
+    // 📊 UI
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px monospace';
+    ctx.fillText(`SCORE: ${score}`, 10, 20);
+    ctx.fillText(`WAVE: ${waveCount}`, W / 2 - 30, 20);
+    ctx.fillText(`ENEMIES: ${enemies.filter(e=>e.alive).length}`, W - 110, 20);
+  }
+
+  function loop() {
+    if (!gameRunning) return;
+    update(); draw();
+    requestAnimationFrame(loop);
+  }
+
+  document.getElementById('overlay').addEventListener('click', () => {
+    initAudio();
+    gameRunning = true;
+    document.getElementById('overlay').classList.add('hidden');
+    loop();
+  });
+});
+</script>
+</body>
+</html>
