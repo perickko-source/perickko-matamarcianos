@@ -52,7 +52,6 @@
 <div id="overlay">
   <h1>👾 MATAMARCIANOS 👾</h1>
   <p>Toca para empezar</p>
-  <p><small>Requiere: carlitos.png, kiko.png, koala.png, nandors.png, pepino.png, perickko.png, valefor.png, nave.png</small></p>
 </div>
 
 <div id="rotate-warning">
@@ -144,7 +143,7 @@ window.addEventListener('DOMContentLoaded', () => {
       osc.frequency.linearRampToValueAtTime(80, t + 0.5);
       g.gain.setValueAtTime(0.3, t); g.gain.linearRampToValueAtTime(0.1, t + 0.5);
       osc.start(t); osc.stop(t + 0.5);
-    } else if (type === 'bossDefeat') { // 🎺 FANFARRIA SIN PARÓN
+    } else if (type === 'bossDefeat') {
       const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
       notes.forEach((freq, i) => {
         const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
@@ -215,7 +214,7 @@ window.addEventListener('DOMContentLoaded', () => {
   let bossActive = false;
   let boss = { x: 0, y: 0, w: 140, h: 140, hp: 0, maxHp: 0, type: '', phase: 'enter', angle: 0, shootTimer: 0 };
 
-  // 🛡️ UI SIN PARÓN (Desacoplada del frame principal)
+  // 🛡️ UI SIN PARÓN
   function showPhaseTransition(text) {
     setTimeout(() => {
       const el = document.getElementById('phase-msg');
@@ -408,14 +407,13 @@ window.addEventListener('DOMContentLoaded', () => {
         if (boss.hp <= 0) {
           bossActive = false;
           transitioning = true;
-          playSound('bossDefeat'); // 🎺 FANFARRIA
+          playSound('bossDefeat');
           createExplosion(boss.x + boss.w/2, boss.y + boss.h/2);
           createExplosion(boss.x + boss.w/3, boss.y + boss.h/3);
           createExplosion(boss.x + 2*boss.w/3, boss.y + 2*boss.h/3);
           score += 1500;
           currentBossIdx++;
           
-          // 🛡️ Desacoplado para evitar parón
           setTimeout(() => {
             if (currentBossIdx >= PHASES[currentPhaseIdx].bosses.length) {
               currentPhaseIdx++;
