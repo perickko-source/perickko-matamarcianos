@@ -97,15 +97,18 @@ window.addEventListener('DOMContentLoaded', () => {
     nandors: '#0f0', pepino: '#a0f', perickko: '#00ffff', valefor: '#f0a'
   };
 
-  // 🔊 AUDIO
+  // 🔊 AUDIO OPTIMIZADO
   let audioCtx = null;
   function initAudio() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
   }
+  
   function playSound(type) {
     if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
     const t = audioCtx.currentTime;
+
     if (type === 'playerShoot') {
       const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
       osc.connect(g); g.connect(audioCtx.destination);
@@ -141,15 +144,16 @@ window.addEventListener('DOMContentLoaded', () => {
       osc.frequency.linearRampToValueAtTime(80, t + 0.5);
       g.gain.setValueAtTime(0.3, t); g.gain.linearRampToValueAtTime(0.1, t + 0.5);
       osc.start(t); osc.stop(t + 0.5);
-    } else if (type === 'bossDefeat') { // 🎺 FANFARRIA
+    } else if (type === 'bossDefeat') { // 🎺 FANFARRIA SIN PARÓN
       const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
       notes.forEach((freq, i) => {
         const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
         osc.connect(g); g.connect(audioCtx.destination);
         const st = t + i * 0.12;
         osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, st);
-        g.gain.setValueAtTime(0.2, st); g.gain.exponentialRampToValueAtTime(0.01, st + 0.5);
-        osc.start(st); osc.stop(st + 0.5);
+        g.gain.setValueAtTime(0.15, st);
+        g.gain.exponentialRampToValueAtTime(0.001, st + 0.6);
+        osc.start(st); osc.stop(st + 0.6);
       });
     }
   }
@@ -157,7 +161,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // 🎮 ESTADO
   let gameRunning = false;
   let score = 0;
-  let transitioning = false; // 🛡️ Evita colisiones de lógica
+  let transitioning = false;
   let gameWon = false;
   const keys = {};
   window.addEventListener('keydown', e => keys[e.code] = true);
@@ -211,15 +215,27 @@ window.addEventListener('DOMContentLoaded', () => {
   let bossActive = false;
   let boss = { x: 0, y: 0, w: 140, h: 140, hp: 0, maxHp: 0, type: '', phase: 'enter', angle: 0, shootTimer: 0 };
 
+  // 🛡️ UI SIN PARÓN (Desacoplada del frame principal)
   function showPhaseTransition(text) {
-    const el = document.getElementById('phase-msg');
-    document.getElementById('phase-text').textContent = text;
-    el.style.display = 'flex';
-    setTimeout(() => { el.style.opacity = 0; setTimeout(() => { el.style.display = 'none'; el.style.opacity = 1; }, 300); }, 2000);
+    setTimeout(() => {
+      const el = document.getElementById('phase-msg');
+      document.getElementById('phase-text').textContent = text;
+      el.style.display = 'flex';
+      setTimeout(() => { el.style.opacity = 0; setTimeout(() => { el.style.display = 'none'; el.style.opacity = 1; }, 300); }, 2000);
+    }, 50);
+  }
+
+  function showVictory() {
+    setTimeout(() => {
+      gameWon = true;
+      gameRunning = false;
+      document.getElementById('final-score').textContent = `Puntuación Final: ${score}`;
+      document.getElementById('victory-screen').style.display = 'flex';
+    }, 50);
   }
 
   function spawnWave() {
-    if (transitioning || bossActive || gameWon) return; // 🛡️ SEGURIDAD
+    if (transitioning || bossActive || gameWon) return;
     waveCount++;
     enemies = [];
     const phase = PHASES[currentPhaseIdx];
@@ -260,15 +276,8 @@ window.addEventListener('DOMContentLoaded', () => {
     boss.x = W / 2 - 70; boss.y = -150;
     boss.phase = 'enter'; boss.angle = 0; boss.shootTimer = 0;
     bossActive = true; transitioning = true;
-    setTimeout(() => { transitioning = false; }, 1000); // Espera a que aparezca
+    setTimeout(() => { transitioning = false; }, 800);
     playSound('bossAppear');
-  }
-
-  function showVictory() {
-    gameWon = true;
-    gameRunning = false;
-    document.getElementById('final-score').textContent = `Puntuación Final: ${score}`;
-    document.getElementById('victory-screen').style.display = 'flex';
   }
 
   function resetGame() {
@@ -288,7 +297,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   function update() {
-    if (gameWon || transitioning) return; // Pausa lógica durante transiciones/victoria
+    if (gameWon) return;
     time += 0.016;
     
     if (!isTouching) {
@@ -322,7 +331,7 @@ window.addEventListener('DOMContentLoaded', () => {
           e.y += e.vy;
           if (!e.isDiving && Math.random() < 0.005) { e.isDiving = true; e.vy *= 3.5; playSound('dive'); }
           if (e.isDiving) e.colorShift = Math.sin(time * 20) > 0 ? 1 : 0;
-          if (e.y > H + 100) e.alive = false; // 🛡️ Margen más seguro
+          if (e.y > H + 100) e.alive = false;
         } 
         else if (e.behavior === 'circle_left') {
           if (e.state === 'enter') { e.x += 3; if (e.x >= 100) { e.state = 'circle'; e.circleProgress = 0; e.angle = Math.PI; } }
@@ -406,19 +415,22 @@ window.addEventListener('DOMContentLoaded', () => {
           score += 1500;
           currentBossIdx++;
           
-          if (currentBossIdx >= PHASES[currentPhaseIdx].bosses.length) {
-            currentPhaseIdx++;
-            if (currentPhaseIdx >= PHASES.length) {
-              setTimeout(showVictory, 1500);
-              return;
-            } else {
-              currentBossIdx = 0;
-              showPhaseTransition(PHASES[currentPhaseIdx].name);
+          // 🛡️ Desacoplado para evitar parón
+          setTimeout(() => {
+            if (currentBossIdx >= PHASES[currentPhaseIdx].bosses.length) {
+              currentPhaseIdx++;
+              if (currentPhaseIdx >= PHASES.length) {
+                showVictory();
+              } else {
+                currentBossIdx = 0;
+                showPhaseTransition(PHASES[currentPhaseIdx].name);
+              }
             }
-          }
-          setTimeout(() => { transitioning = false; spawnWave(); }, 1500);
+            transitioning = false;
+            spawnWave();
+          }, 1200);
+          break;
         }
-        break;
       }
       for (let e of enemies) {
         if (!e.alive) continue;
