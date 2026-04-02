@@ -20,11 +20,18 @@
       image-rendering: pixelated;
       touch-action: none; background: #000;
     }
-    #overlay, #rotate-warning, #phase-msg {
+    #overlay, #rotate-warning, #phase-msg, #victory-screen {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       display: flex; flex-direction: column; justify-content: center; align-items: center;
       background: rgba(0,0,0,0.85); color: #fff; font-family: monospace; cursor: pointer; z-index: 10;
       text-align: center; padding: 20px; pointer-events: none;
+    }
+    #victory-screen { background: rgba(0,0,10,0.95); pointer-events: auto; display: none; }
+    #victory-screen h1 { font-size: 32px; color: #0f0; text-shadow: 0 0 15px #0f0; margin-bottom: 10px; }
+    #victory-screen p { margin: 5px 0; color: #aaa; }
+    #victory-screen button {
+      margin-top: 20px; padding: 10px 20px; font-family: monospace; font-size: 16px;
+      background: #0af; border: none; color: #000; cursor: pointer; pointer-events: auto;
     }
     #phase-msg { display: none; background: transparent; z-index: 15; transition: opacity 0.3s; }
     #phase-msg h2 { font-size: 36px; text-shadow: 0 0 15px #0af; animation: pop 0.5s ease-out; }
@@ -55,6 +62,13 @@
 
 <div id="phase-msg"><h2 id="phase-text">¡FASE 2!</h2></div>
 
+<div id="victory-screen">
+  <h1>🏆 ¡VICTORIA! 🏆</h1>
+  <p id="final-score">Puntuación Final: 0</p>
+  <p>Has completado las 2 fases</p>
+  <button id="restart-btn">JUGAR DE NUEVO</button>
+</div>
+
 <script>
 window.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('game');
@@ -70,7 +84,7 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('orientationchange', checkOrientation);
   checkOrientation();
 
-  // 🖼️ CARGA DE IMÁGENES
+  // 🖼️ ASSETS
   const imgs = {
     carlitos: new Image(), kiko: new Image(), koala: new Image(),
     nandors: new Image(), pepino: new Image(), perickko: new Image(), valefor: new Image(),
@@ -91,50 +105,72 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   function playSound(type) {
     if (!audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain); gain.connect(audioCtx.destination);
     const t = audioCtx.currentTime;
     if (type === 'playerShoot') {
+      const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+      osc.connect(g); g.connect(audioCtx.destination);
       osc.type = 'square'; osc.frequency.setValueAtTime(880, t);
       osc.frequency.exponentialRampToValueAtTime(220, t + 0.1);
-      gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+      g.gain.setValueAtTime(0.1, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
       osc.start(t); osc.stop(t + 0.1);
     } else if (type === 'alienShoot') {
+      const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+      osc.connect(g); g.connect(audioCtx.destination);
       osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, t);
       osc.frequency.exponentialRampToValueAtTime(100, t + 0.15);
-      gain.gain.setValueAtTime(0.05, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+      g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
       osc.start(t); osc.stop(t + 0.15);
     } else if (type === 'explode') {
+      const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+      osc.connect(g); g.connect(audioCtx.destination);
       osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t);
       osc.frequency.exponentialRampToValueAtTime(20, t + 0.3);
-      gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+      g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
       osc.start(t); osc.stop(t + 0.3);
     } else if (type === 'dive') {
+      const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+      osc.connect(g); g.connect(audioCtx.destination);
       osc.type = 'sawtooth'; osc.frequency.setValueAtTime(400, t);
       osc.frequency.linearRampToValueAtTime(1200, t + 0.3);
-      gain.gain.setValueAtTime(0.15, t); gain.gain.linearRampToValueAtTime(0, t + 0.3);
+      g.gain.setValueAtTime(0.15, t); g.gain.linearRampToValueAtTime(0, t + 0.3);
       osc.start(t); osc.stop(t + 0.3);
     } else if (type === 'bossAppear') {
+      const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+      osc.connect(g); g.connect(audioCtx.destination);
       osc.type = 'square'; osc.frequency.setValueAtTime(150, t);
       osc.frequency.linearRampToValueAtTime(80, t + 0.5);
-      gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0.1, t + 0.5);
+      g.gain.setValueAtTime(0.3, t); g.gain.linearRampToValueAtTime(0.1, t + 0.5);
       osc.start(t); osc.stop(t + 0.5);
+    } else if (type === 'bossDefeat') { // 🎺 FANFARRIA
+      const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+      notes.forEach((freq, i) => {
+        const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+        osc.connect(g); g.connect(audioCtx.destination);
+        const st = t + i * 0.12;
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, st);
+        g.gain.setValueAtTime(0.2, st); g.gain.exponentialRampToValueAtTime(0.01, st + 0.5);
+        osc.start(st); osc.stop(st + 0.5);
+      });
     }
   }
 
   // 🎮 ESTADO
   let gameRunning = false;
   let score = 0;
+  let transitioning = false; // 🛡️ Evita colisiones de lógica
+  let gameWon = false;
   const keys = {};
   window.addEventListener('keydown', e => keys[e.code] = true);
   window.addEventListener('keyup', e => keys[e.code] = false);
 
   let isTouching = false;
-  canvas.addEventListener('touchstart', (e) => { if (!gameRunning) return; isTouching = true; updateTouch(e.touches[0].clientX); }, { passive: false });
-  canvas.addEventListener('touchmove', (e) => { if (!gameRunning || !isTouching) return; e.preventDefault(); updateTouch(e.touches[0].clientX); }, { passive: false });
-  canvas.addEventListener('touchend', () => { isTouching = false; });
-  canvas.addEventListener('touchcancel', () => { isTouching = false; });
+  function setupTouch() {
+    canvas.addEventListener('touchstart', (e) => { if (!gameRunning) return; isTouching = true; updateTouch(e.touches[0].clientX); }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => { if (!gameRunning || !isTouching) return; e.preventDefault(); updateTouch(e.touches[0].clientX); }, { passive: false });
+    canvas.addEventListener('touchend', () => { isTouching = false; });
+    canvas.addEventListener('touchcancel', () => { isTouching = false; });
+  }
+  setupTouch();
 
   function updateTouch(clientX) {
     const rect = canvas.getBoundingClientRect();
@@ -152,7 +188,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const pBullets = [], aBullets = [];
   const particles = [];
 
-  // 🏆 SISTEMA DE FASES Y JEFES
+  // 🏆 FASES Y JEFES
   const PHASES = [
     { name: "FASE 1", enemies: ['carlitos', 'kiko', 'koala'], bosses: [
       { type: 'carlitos', threshold: 3500, hp: 20 },
@@ -183,15 +219,15 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   function spawnWave() {
+    if (transitioning || bossActive || gameWon) return; // 🛡️ SEGURIDAD
     waveCount++;
     enemies = [];
     const phase = PHASES[currentPhaseIdx];
     const margin = 20;
-    const spacing = (W - margin * 2 - 70 * phase.enemies.length) / (phase.enemies.length - 1 || 1);
+    const spacing = (W - margin * 2 - 70 * 3) / 2;
     const behaviorType = Math.random() < 0.6 ? 'normal' : (Math.random() < 0.8 ? 'circle_left' : 'circle_right');
 
-    const count = phase.enemies.length === 3 ? 3 : 3; // Siempre salen 3 por oleada
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < 3; i++) {
       let type = phase.enemies[Math.floor(Math.random() * phase.enemies.length)];
       let e = { w: 70, h: 70, alive: true, type: type, behavior: behaviorType };
 
@@ -199,9 +235,7 @@ window.addEventListener('DOMContentLoaded', () => {
         e.x = margin + i * (70 + spacing);
         e.y = -70 - (Math.random() * 100);
         e.baseX = margin + i * (70 + spacing);
-        e.phase = i * 2.2;
-        e.vy = 0.5 + (waveCount * 0.04);
-        e.isDiving = false; e.colorShift = 0;
+        e.phase = i * 2.2; e.vy = 0.5 + (waveCount * 0.04); e.isDiving = false; e.colorShift = 0;
       } else if (behaviorType === 'circle_left') {
         e.x = -80 - (i * 90); e.y = 300; e.state = 'enter';
         e.angle = Math.PI; e.circleProgress = 0; e.angularSpeed = 0.025; e.attackSpeed = 3.2; e.shootTimer = 0;
@@ -212,7 +246,6 @@ window.addEventListener('DOMContentLoaded', () => {
       enemies.push(e);
     }
   }
-  spawnWave();
 
   function rectIntersect(r1, r2) { return r1.x < r2.x + r2.w && r1.x + r1.w > r2.x && r1.y < r2.y + r2.h && r1.y + r1.h > r2.y; }
   function createExplosion(x, y) {
@@ -220,23 +253,42 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   function startBoss() {
-    const phase = PHASES[currentPhaseIdx];
-    if (currentBossIdx >= phase.bosses.length) return;
-    const cfg = phase.bosses[currentBossIdx];
+    if (transitioning || bossActive || currentBossIdx >= PHASES[currentPhaseIdx].bosses.length) return;
+    const cfg = PHASES[currentPhaseIdx].bosses[currentBossIdx];
     enemies = []; 
-    boss.type = cfg.type;
-    boss.maxHp = cfg.hp;
-    boss.hp = cfg.hp;
-    boss.x = W / 2 - 70;
-    boss.y = -150;
-    boss.phase = 'enter';
-    boss.angle = 0;
-    boss.shootTimer = 0;
-    bossActive = true;
+    boss.type = cfg.type; boss.maxHp = cfg.hp; boss.hp = cfg.hp;
+    boss.x = W / 2 - 70; boss.y = -150;
+    boss.phase = 'enter'; boss.angle = 0; boss.shootTimer = 0;
+    bossActive = true; transitioning = true;
+    setTimeout(() => { transitioning = false; }, 1000); // Espera a que aparezca
     playSound('bossAppear');
   }
 
+  function showVictory() {
+    gameWon = true;
+    gameRunning = false;
+    document.getElementById('final-score').textContent = `Puntuación Final: ${score}`;
+    document.getElementById('victory-screen').style.display = 'flex';
+  }
+
+  function resetGame() {
+    score = 0; currentPhaseIdx = 0; currentBossIdx = 0;
+    bossActive = false; transitioning = false; gameWon = false;
+    waveCount = 0; enemies = []; pBullets.length = 0; aBullets.length = 0; particles.length = 0;
+    boss = { x: 0, y: 0, w: 140, h: 140, hp: 0, maxHp: 0, type: '', phase: 'enter', angle: 0, shootTimer: 0 };
+    document.getElementById('victory-screen').style.display = 'none';
+    spawnWave();
+    gameRunning = true;
+    loop();
+  }
+
+  document.getElementById('restart-btn').addEventListener('click', () => {
+    initAudio();
+    resetGame();
+  });
+
   function update() {
+    if (gameWon || transitioning) return; // Pausa lógica durante transiciones/victoria
     time += 0.016;
     
     if (!isTouching) {
@@ -255,7 +307,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (player.cooldown > 0) player.cooldown--;
 
     const phase = PHASES[currentPhaseIdx];
-    if (!bossActive && currentBossIdx < phase.bosses.length && score >= phase.bosses[currentBossIdx].threshold) {
+    if (!bossActive && !transitioning && currentBossIdx < phase.bosses.length && score >= phase.bosses[currentBossIdx].threshold) {
       startBoss();
     }
 
@@ -270,7 +322,7 @@ window.addEventListener('DOMContentLoaded', () => {
           e.y += e.vy;
           if (!e.isDiving && Math.random() < 0.005) { e.isDiving = true; e.vy *= 3.5; playSound('dive'); }
           if (e.isDiving) e.colorShift = Math.sin(time * 20) > 0 ? 1 : 0;
-          if (e.y > H + 50) e.alive = false;
+          if (e.y > H + 100) e.alive = false; // 🛡️ Margen más seguro
         } 
         else if (e.behavior === 'circle_left') {
           if (e.state === 'enter') { e.x += 3; if (e.x >= 100) { e.state = 'circle'; e.circleProgress = 0; e.angle = Math.PI; } }
@@ -306,16 +358,16 @@ window.addEventListener('DOMContentLoaded', () => {
           }
         }
       }
-      if (activeCount === 0) spawnWave();
+      if (activeCount === 0 && !transitioning) spawnWave();
     } else {
-      if (boss.phase === 'enter') { boss.y += 4; if (boss.y >= 60) boss.phase = 'fight'; }
+      if (boss.phase === 'enter') { boss.y += 3; if (boss.y >= 50) boss.phase = 'fight'; }
       else if (boss.phase === 'fight') {
-        boss.angle += 0.035;
-        boss.x = W / 2 - 70 + Math.sin(boss.angle) * 90;
+        boss.angle += 0.03;
+        boss.x = W / 2 - 70 + Math.sin(boss.angle) * 85;
         boss.shootTimer++;
-        if (boss.shootTimer > 28) {
+        if (boss.shootTimer > 25) {
           for(let off of [-1.5, -0.5, 0.5, 1.5]) {
-            aBullets.push({ x: boss.x + boss.w/2 - 2 + off*12, y: boss.y + boss.h, w: 5, h: 12, speed: 4.2 });
+            aBullets.push({ x: boss.x + boss.w/2 - 2 + off*12, y: boss.y + boss.h, w: 5, h: 12, speed: 4 });
           }
           playSound('alienShoot');
           boss.shootTimer = 0;
@@ -323,7 +375,7 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    if (!bossActive && enemies.some(e => e.alive && e.behavior === 'normal')) {
+    if (!bossActive && !transitioning && enemies.some(e => e.alive && e.behavior === 'normal')) {
       alienShootTimer++;
       if (alienShootTimer > 60) {
         const targets = enemies.filter(e => e.alive && e.behavior === 'normal' && e.y > 0 && e.y < H - 100);
@@ -346,19 +398,25 @@ window.addEventListener('DOMContentLoaded', () => {
         pBullets.splice(i, 1);
         if (boss.hp <= 0) {
           bossActive = false;
+          transitioning = true;
+          playSound('bossDefeat'); // 🎺 FANFARRIA
           createExplosion(boss.x + boss.w/2, boss.y + boss.h/2);
           createExplosion(boss.x + boss.w/3, boss.y + boss.h/3);
           createExplosion(boss.x + 2*boss.w/3, boss.y + 2*boss.h/3);
           score += 1500;
           currentBossIdx++;
           
-          const nextPhase = PHASES[currentPhaseIdx];
-          if (currentBossIdx >= nextPhase.bosses.length) {
+          if (currentBossIdx >= PHASES[currentPhaseIdx].bosses.length) {
             currentPhaseIdx++;
-            currentBossIdx = 0;
-            if (currentPhaseIdx < PHASES.length) showPhaseTransition(PHASES[currentPhaseIdx].name);
+            if (currentPhaseIdx >= PHASES.length) {
+              setTimeout(showVictory, 1500);
+              return;
+            } else {
+              currentBossIdx = 0;
+              showPhaseTransition(PHASES[currentPhaseIdx].name);
+            }
           }
-          setTimeout(spawnWave, 1200);
+          setTimeout(() => { transitioning = false; spawnWave(); }, 1500);
         }
         break;
       }
@@ -415,7 +473,7 @@ window.addEventListener('DOMContentLoaded', () => {
     ctx.fillStyle = '#f00'; for (let b of aBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
     for (let p of particles) { ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 40; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
 
-    const phase = PHASES[currentPhaseIdx];
+    const phase = PHASES[currentPhaseIdx] || PHASES[0];
     ctx.fillStyle = '#fff'; ctx.font = 'bold 16px monospace';
     ctx.fillText(`SCORE: ${score}`, 10, 20);
     ctx.fillText(`${phase.name}`, W / 2 - 40, 20);
