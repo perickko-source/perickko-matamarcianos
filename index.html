@@ -20,15 +20,19 @@
       image-rendering: pixelated;
       touch-action: none; background: #000;
     }
-    #overlay, #rotate-warning {
+    #overlay, #rotate-warning, #phase-msg {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       display: flex; flex-direction: column; justify-content: center; align-items: center;
-      background: rgba(0,0,0,0.9); color: #fff; font-family: monospace; cursor: pointer; z-index: 10;
-      text-align: center; padding: 20px;
+      background: rgba(0,0,0,0.85); color: #fff; font-family: monospace; cursor: pointer; z-index: 10;
+      text-align: center; padding: 20px; pointer-events: none;
     }
+    #phase-msg { display: none; background: transparent; z-index: 15; transition: opacity 0.3s; }
+    #phase-msg h2 { font-size: 36px; text-shadow: 0 0 15px #0af; animation: pop 0.5s ease-out; }
+    @keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    #overlay { background: rgba(0,0,0,0.9); pointer-events: auto; }
     #overlay h1 { margin: 0 0 10px 0; font-size: 28px; text-shadow: 0 0 10px #0af; }
     #overlay p { margin: 5px 0; font-size: 14px; color: #aaa; }
-    #rotate-warning { display: none; z-index: 20; }
+    #rotate-warning { display: none; z-index: 20; background: rgba(0,0,0,0.95); }
     #rotate-warning .icon { font-size: 48px; margin-bottom: 15px; animation: spin 2s linear infinite; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(90deg); } }
     .hidden { display: none !important; }
@@ -41,13 +45,15 @@
 <div id="overlay">
   <h1>👾 MATAMARCIANOS 👾</h1>
   <p>Toca para empezar</p>
-  <p><small>Imágenes: valefor.png, nandors.png, pepino.png, koala.png, nave.png</small></p>
+  <p><small>Requiere: carlitos.png, kiko.png, koala.png, nandors.png, pepino.png, perickko.png, valefor.png, nave.png</small></p>
 </div>
 
 <div id="rotate-warning">
   <div class="icon">📱</div>
   <p>Por favor, gira tu dispositivo<br>a modo <strong>VERTICAL</strong></p>
 </div>
+
+<div id="phase-msg"><h2 id="phase-text">¡FASE 2!</h2></div>
 
 <script>
 window.addEventListener('DOMContentLoaded', () => {
@@ -59,19 +65,23 @@ window.addEventListener('DOMContentLoaded', () => {
   if (screen.orientation?.lock) screen.orientation.lock('portrait').catch(() => {});
 
   const warning = document.getElementById('rotate-warning');
-  function checkOrientation() {
-    warning.style.display = window.innerWidth > window.innerHeight ? 'flex' : 'none';
-  }
+  function checkOrientation() { warning.style.display = window.innerWidth > window.innerHeight ? 'flex' : 'none'; }
   window.addEventListener('resize', checkOrientation);
   window.addEventListener('orientationchange', checkOrientation);
   checkOrientation();
 
   // 🖼️ CARGA DE IMÁGENES
-  const valeforImg = new Image(); valeforImg.src = 'valefor.png';
-  const nandorsImg = new Image(); nandorsImg.src = 'nandors.png';
-  const pepinoImg = new Image(); pepinoImg.src = 'pepino.png';
-  const koalaImg = new Image(); koalaImg.src = 'koala.png'; // 🆕 Nueva nave enemiga
-  const playerImg = new Image(); playerImg.src = 'nave.png';
+  const imgs = {
+    carlitos: new Image(), kiko: new Image(), koala: new Image(),
+    nandors: new Image(), pepino: new Image(), perickko: new Image(), valefor: new Image(),
+    player: new Image()
+  };
+  for(let key in imgs) imgs[key].src = key === 'player' ? 'nave.png' : `${key}.png`;
+
+  const fallbackColors = {
+    carlitos: '#f8a000', kiko: '#ff0', koala: '#bbb',
+    nandors: '#0f0', pepino: '#a0f', perickko: '#00ffff', valefor: '#f0a'
+  };
 
   // 🔊 AUDIO
   let audioCtx = null;
@@ -101,12 +111,15 @@ window.addEventListener('DOMContentLoaded', () => {
       gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
       osc.start(t); osc.stop(t + 0.3);
     } else if (type === 'dive') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(400, t);
+      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(400, t);
       osc.frequency.linearRampToValueAtTime(1200, t + 0.3);
-      gain.gain.setValueAtTime(0.15, t);
-      gain.gain.linearRampToValueAtTime(0, t + 0.3);
+      gain.gain.setValueAtTime(0.15, t); gain.gain.linearRampToValueAtTime(0, t + 0.3);
       osc.start(t); osc.stop(t + 0.3);
+    } else if (type === 'bossAppear') {
+      osc.type = 'square'; osc.frequency.setValueAtTime(150, t);
+      osc.frequency.linearRampToValueAtTime(80, t + 0.5);
+      gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0.1, t + 0.5);
+      osc.start(t); osc.stop(t + 0.5);
     }
   }
 
@@ -118,16 +131,8 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('keyup', e => keys[e.code] = false);
 
   let isTouching = false;
-  canvas.addEventListener('touchstart', (e) => {
-    if (!gameRunning) return;
-    isTouching = true;
-    updateTouch(e.touches[0].clientX);
-  }, { passive: false });
-  canvas.addEventListener('touchmove', (e) => {
-    if (!gameRunning || !isTouching) return;
-    e.preventDefault();
-    updateTouch(e.touches[0].clientX);
-  }, { passive: false });
+  canvas.addEventListener('touchstart', (e) => { if (!gameRunning) return; isTouching = true; updateTouch(e.touches[0].clientX); }, { passive: false });
+  canvas.addEventListener('touchmove', (e) => { if (!gameRunning || !isTouching) return; e.preventDefault(); updateTouch(e.touches[0].clientX); }, { passive: false });
   canvas.addEventListener('touchend', () => { isTouching = false; });
   canvas.addEventListener('touchcancel', () => { isTouching = false; });
 
@@ -147,75 +152,62 @@ window.addEventListener('DOMContentLoaded', () => {
   const pBullets = [], aBullets = [];
   const particles = [];
 
-  // 👾 ENEMIGOS & OLEADAS
-  const ENEMY_SIZE = 70;
+  // 🏆 SISTEMA DE FASES Y JEFES
+  const PHASES = [
+    { name: "FASE 1", enemies: ['carlitos', 'kiko', 'koala'], bosses: [
+      { type: 'carlitos', threshold: 3500, hp: 20 },
+      { type: 'kiko',     threshold: 7000, hp: 30 },
+      { type: 'koala',    threshold: 10500, hp: 30 }
+    ]},
+    { name: "FASE 2", enemies: ['nandors', 'pepino', 'perickko', 'valefor'], bosses: [
+      { type: 'nandors',  threshold: 14000, hp: 40 },
+      { type: 'pepino',   threshold: 18500, hp: 50 },
+      { type: 'perickko', threshold: 23500, hp: 60 },
+      { type: 'valefor',  threshold: 29000, hp: 70 }
+    ]}
+  ];
+  let currentPhaseIdx = 0;
+  let currentBossIdx = 0;
   let enemies = [];
   let waveCount = 0;
   let time = 0;
   let alienShootTimer = 0; 
+  let bossActive = false;
+  let boss = { x: 0, y: 0, w: 140, h: 140, hp: 0, maxHp: 0, type: '', phase: 'enter', angle: 0, shootTimer: 0 };
+
+  function showPhaseTransition(text) {
+    const el = document.getElementById('phase-msg');
+    document.getElementById('phase-text').textContent = text;
+    el.style.display = 'flex';
+    setTimeout(() => { el.style.opacity = 0; setTimeout(() => { el.style.display = 'none'; el.style.opacity = 1; }, 300); }, 2000);
+  }
 
   function spawnWave() {
     waveCount++;
     enemies = [];
+    const phase = PHASES[currentPhaseIdx];
     const margin = 20;
-    const spacing = (W - margin * 2 - ENEMY_SIZE * 3) / 2;
-    
-    // 🎲 Selección de tipo de oleada
-    const randWave = Math.random();
-    let behaviorType;
+    const spacing = (W - margin * 2 - 70 * phase.enemies.length) / (phase.enemies.length - 1 || 1);
+    const behaviorType = Math.random() < 0.6 ? 'normal' : (Math.random() < 0.8 ? 'circle_left' : 'circle_right');
 
-    if (randWave < 0.6) {
-      behaviorType = 'normal'; // 60%
-    } else if (randWave < 0.8) {
-      behaviorType = 'circle_left'; // 20%
-    } else {
-      behaviorType = 'circle_right'; // 20%
-    }
-
-    for (let i = 0; i < 3; i++) {
-      // 🎲 Asignación equitativa entre 4 tipos (25% cada uno)
-      const r = Math.random();
-      let type;
-      if (r < 0.25) type = 'valefor';
-      else if (r < 0.50) type = 'nandors';
-      else if (r < 0.75) type = 'pepino';
-      else type = 'koala';
-
-      let e = {
-        w: ENEMY_SIZE, h: ENEMY_SIZE,
-        alive: true,
-        type: type,
-        behavior: behaviorType
-      };
+    const count = phase.enemies.length === 3 ? 3 : 3; // Siempre salen 3 por oleada
+    for (let i = 0; i < count; i++) {
+      let type = phase.enemies[Math.floor(Math.random() * phase.enemies.length)];
+      let e = { w: 70, h: 70, alive: true, type: type, behavior: behaviorType };
 
       if (behaviorType === 'normal') {
-        e.x = margin + i * (ENEMY_SIZE + spacing);
-        e.y = -ENEMY_SIZE - (Math.random() * 100);
-        e.baseX = margin + i * (ENEMY_SIZE + spacing);
+        e.x = margin + i * (70 + spacing);
+        e.y = -70 - (Math.random() * 100);
+        e.baseX = margin + i * (70 + spacing);
         e.phase = i * 2.2;
         e.vy = 0.5 + (waveCount * 0.04);
-        e.isDiving = false;
-        e.colorShift = 0;
-      } 
-      else if (behaviorType === 'circle_left') {
-        e.x = -80 - (i * 90); 
-        e.y = 300;
-        e.state = 'enter';
-        e.angle = Math.PI;
-        e.circleProgress = 0;
-        e.angularSpeed = 0.025;
-        e.attackSpeed = 3.2;
-        e.shootTimer = 0;
-      }
-      else if (behaviorType === 'circle_right') {
-        e.x = W + 80 + (i * 90);
-        e.y = 300;
-        e.state = 'enter_right';
-        e.angle = 0;
-        e.circleProgress = 0;
-        e.angularSpeed = 0.025;
-        e.attackSpeed = 3.2;
-        e.shootTimer = 0;
+        e.isDiving = false; e.colorShift = 0;
+      } else if (behaviorType === 'circle_left') {
+        e.x = -80 - (i * 90); e.y = 300; e.state = 'enter';
+        e.angle = Math.PI; e.circleProgress = 0; e.angularSpeed = 0.025; e.attackSpeed = 3.2; e.shootTimer = 0;
+      } else {
+        e.x = W + 80 + (i * 90); e.y = 300; e.state = 'enter_right';
+        e.angle = 0; e.circleProgress = 0; e.angularSpeed = 0.025; e.attackSpeed = 3.2; e.shootTimer = 0;
       }
       enemies.push(e);
     }
@@ -227,15 +219,30 @@ window.addEventListener('DOMContentLoaded', () => {
     for (let i = 0; i < 20; i++) particles.push({ x, y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, life: 30 + Math.random() * 10, color: `hsl(${Math.random() * 60 + 10}, 100%, 60%)` });
   }
 
+  function startBoss() {
+    const phase = PHASES[currentPhaseIdx];
+    if (currentBossIdx >= phase.bosses.length) return;
+    const cfg = phase.bosses[currentBossIdx];
+    enemies = []; 
+    boss.type = cfg.type;
+    boss.maxHp = cfg.hp;
+    boss.hp = cfg.hp;
+    boss.x = W / 2 - 70;
+    boss.y = -150;
+    boss.phase = 'enter';
+    boss.angle = 0;
+    boss.shootTimer = 0;
+    bossActive = true;
+    playSound('bossAppear');
+  }
+
   function update() {
     time += 0.016;
     
-    // 🎮 Movimiento jugador
     if (!isTouching) {
       if ((keys['ArrowLeft'] || keys['KeyA']) && player.x > 0) player.x -= player.speed;
       if ((keys['ArrowRight'] || keys['KeyD']) && player.x < W - player.w) player.x += player.speed;
     }
-    // 🔫 Disparo
     if (isTouching && player.autoCD <= 0) {
       pBullets.push({ x: player.x + player.w / 2 - 2, y: player.y, w: 4, h: 12, speed: 7 });
       player.autoCD = 15; playSound('playerShoot');
@@ -247,105 +254,78 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     if (player.cooldown > 0) player.cooldown--;
 
-    // 👾 ACTUALIZAR ENEMIGOS
-    let activeCount = 0;
-    for (let e of enemies) {
-      if (!e.alive) continue;
-      activeCount++;
+    const phase = PHASES[currentPhaseIdx];
+    if (!bossActive && currentBossIdx < phase.bosses.length && score >= phase.bosses[currentBossIdx].threshold) {
+      startBoss();
+    }
 
-      if (e.behavior === 'normal') {
-        e.x = e.baseX + Math.sin(time * 2.2 + e.phase) * 35;
-        if (e.x < 0) e.x = 0;
-        if (e.x + e.w > W) e.x = W - e.w;
-        e.y += e.vy;
-        
-        if (!e.isDiving && Math.random() < 0.005) {
-          e.isDiving = true;
-          e.vy *= 3.5;
-          playSound('dive');
-        }
-        if (e.isDiving) e.colorShift = Math.sin(time * 20) > 0 ? 1 : 0;
-      } 
-      else if (e.behavior === 'circle_left') {
-        if (e.state === 'enter') {
-          e.x += 3; 
-          if (e.x >= 100) { 
-            e.state = 'circle';
-            e.circleProgress = 0;
-            e.angle = Math.PI;
-          }
+    let activeCount = 0;
+    if (!bossActive) {
+      for (let e of enemies) {
+        if (!e.alive) continue;
+        activeCount++;
+        if (e.behavior === 'normal') {
+          e.x = e.baseX + Math.sin(time * 2.2 + e.phase) * 35;
+          if (e.x < 0) e.x = 0; if (e.x + e.w > W) e.x = W - e.w;
+          e.y += e.vy;
+          if (!e.isDiving && Math.random() < 0.005) { e.isDiving = true; e.vy *= 3.5; playSound('dive'); }
+          if (e.isDiving) e.colorShift = Math.sin(time * 20) > 0 ? 1 : 0;
+          if (e.y > H + 50) e.alive = false;
         } 
-        else if (e.state === 'circle') {
-          e.circleProgress += e.angularSpeed;
-          e.angle = Math.PI - e.circleProgress; 
-          e.x = 200 + Math.cos(e.angle) * 100;
-          e.y = 300 + Math.sin(e.angle) * 100;
-          
-          if (e.circleProgress >= 4 * Math.PI) { 
-            e.state = 'attack';
-            playSound('dive'); 
+        else if (e.behavior === 'circle_left') {
+          if (e.state === 'enter') { e.x += 3; if (e.x >= 100) { e.state = 'circle'; e.circleProgress = 0; e.angle = Math.PI; } }
+          else if (e.state === 'circle') {
+            e.circleProgress += e.angularSpeed; e.angle = Math.PI - e.circleProgress;
+            e.x = 200 + Math.cos(e.angle) * 100; e.y = 300 + Math.sin(e.angle) * 100;
+            if (e.circleProgress >= 4 * Math.PI) { e.state = 'attack'; playSound('dive'); }
+          } else if (e.state === 'attack') {
+            let dx = (player.x + player.w/2) - (e.x + e.w/2), dy = (player.y + player.h/2) - (e.y + e.h/2);
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist > 0) { e.x += (dx/dist) * e.attackSpeed; e.y += (dy/dist) * e.attackSpeed; }
+            e.shootTimer++;
+            if (e.shootTimer > 35 && e.y < player.y - 40) {
+              aBullets.push({ x: e.x + e.w/2 - 2, y: e.y + e.h, w: 4, h: 12, speed: 4.5 }); playSound('alienShoot'); e.shootTimer = 0;
+            }
+            if (e.x < -150 || e.x > W + 150 || e.y > H + 150 || e.y < -150) e.alive = false;
           }
-        } 
-        else if (e.state === 'attack') {
-          let dx = (player.x + player.w/2) - (e.x + e.w/2);
-          let dy = (player.y + player.h/2) - (e.y + e.h/2);
-          let dist = Math.sqrt(dx*dx + dy*dy);
-          if (dist > 0) {
-            e.x += (dx/dist) * e.attackSpeed;
-            e.y += (dy/dist) * e.attackSpeed;
+        } else if (e.behavior === 'circle_right') {
+          if (e.state === 'enter_right') { e.x -= 3; if (e.x <= 300) { e.state = 'circle'; e.circleProgress = 0; e.angle = 0; } }
+          else if (e.state === 'circle') {
+            e.circleProgress += e.angularSpeed; e.angle = e.circleProgress;
+            e.x = 200 + Math.cos(e.angle) * 100; e.y = 300 + Math.sin(e.angle) * 100;
+            if (e.circleProgress >= 4 * Math.PI) { e.state = 'attack'; playSound('dive'); }
+          } else if (e.state === 'attack') {
+            let dx = (player.x + player.w/2) - (e.x + e.w/2), dy = (player.y + player.h/2) - (e.y + e.h/2);
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist > 0) { e.x += (dx/dist) * e.attackSpeed; e.y += (dy/dist) * e.attackSpeed; }
+            e.shootTimer++;
+            if (e.shootTimer > 35 && e.y < player.y - 40) {
+              aBullets.push({ x: e.x + e.w/2 - 2, y: e.y + e.h, w: 4, h: 12, speed: 4.5 }); playSound('alienShoot'); e.shootTimer = 0;
+            }
+            if (e.x < -150 || e.x > W + 150 || e.y > H + 150 || e.y < -150) e.alive = false;
           }
-          e.shootTimer++;
-          if (e.shootTimer > 35 && e.y < player.y - 40) {
-            aBullets.push({ x: e.x + e.w/2 - 2, y: e.y + e.h, w: 4, h: 12, speed: 4.5 });
-            playSound('alienShoot');
-            e.shootTimer = 0;
-          }
-          if (e.x < -150 || e.x > W + 150 || e.y > H + 150 || e.y < -150) e.alive = false;
         }
       }
-      else if (e.behavior === 'circle_right') {
-        if (e.state === 'enter_right') {
-          e.x -= 3; 
-          if (e.x <= 300) { 
-            e.state = 'circle';
-            e.circleProgress = 0;
-            e.angle = 0;
+      if (activeCount === 0) spawnWave();
+    } else {
+      if (boss.phase === 'enter') { boss.y += 4; if (boss.y >= 60) boss.phase = 'fight'; }
+      else if (boss.phase === 'fight') {
+        boss.angle += 0.035;
+        boss.x = W / 2 - 70 + Math.sin(boss.angle) * 90;
+        boss.shootTimer++;
+        if (boss.shootTimer > 28) {
+          for(let off of [-1.5, -0.5, 0.5, 1.5]) {
+            aBullets.push({ x: boss.x + boss.w/2 - 2 + off*12, y: boss.y + boss.h, w: 5, h: 12, speed: 4.2 });
           }
-        } 
-        else if (e.state === 'circle') {
-          e.circleProgress += e.angularSpeed;
-          e.angle = e.circleProgress; 
-          e.x = 200 + Math.cos(e.angle) * 100;
-          e.y = 300 + Math.sin(e.angle) * 100;
-          
-          if (e.circleProgress >= 4 * Math.PI) { 
-            e.state = 'attack';
-            playSound('dive');
-          }
-        } 
-        else if (e.state === 'attack') {
-          let dx = (player.x + player.w/2) - (e.x + e.w/2);
-          let dy = (player.y + player.h/2) - (e.y + e.h/2);
-          let dist = Math.sqrt(dx*dx + dy*dy);
-          if (dist > 0) {
-            e.x += (dx/dist) * e.attackSpeed;
-            e.y += (dy/dist) * e.attackSpeed;
-          }
-          e.shootTimer++;
-          if (e.shootTimer > 35 && e.y < player.y - 40) {
-            aBullets.push({ x: e.x + e.w/2 - 2, y: e.y + e.h, w: 4, h: 12, speed: 4.5 });
-            playSound('alienShoot');
-            e.shootTimer = 0;
-          }
-          if (e.x < -150 || e.x > W + 150 || e.y > H + 150 || e.y < -150) e.alive = false;
+          playSound('alienShoot');
+          boss.shootTimer = 0;
         }
       }
     }
 
-    // 🔻 Disparo global SOLO para oleadas normales
-    if (enemies.some(e => e.alive && e.behavior === 'normal')) {
+    if (!bossActive && enemies.some(e => e.alive && e.behavior === 'normal')) {
       alienShootTimer++;
-      if (alienShootTimer > 65) {
+      if (alienShootTimer > 60) {
         const targets = enemies.filter(e => e.alive && e.behavior === 'normal' && e.y > 0 && e.y < H - 100);
         if (targets.length > 0) {
           const shooter = targets[Math.floor(Math.random() * targets.length)];
@@ -356,39 +336,46 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // 💥 Balas
-    for (let i = pBullets.length - 1; i >= 0; i--) {
-      pBullets[i].y -= pBullets[i].speed;
-      if (pBullets[i].y < 0) pBullets.splice(i, 1);
-    }
-    for (let i = aBullets.length - 1; i >= 0; i--) {
-      aBullets[i].y += aBullets[i].speed;
-      if (aBullets[i].y > H) aBullets.splice(i, 1);
-    }
+    for (let i = pBullets.length - 1; i >= 0; i--) { pBullets[i].y -= pBullets[i].speed; if (pBullets[i].y < 0) pBullets.splice(i, 1); }
+    for (let i = aBullets.length - 1; i >= 0; i--) { aBullets[i].y += aBullets[i].speed; if (aBullets[i].y > H) aBullets.splice(i, 1); }
 
-    // 💥 Colisiones
     for (let i = pBullets.length - 1; i >= 0; i--) {
+      if (bossActive && rectIntersect(pBullets[i], boss)) {
+        boss.hp--;
+        createExplosion(pBullets[i].x, pBullets[i].y);
+        pBullets.splice(i, 1);
+        if (boss.hp <= 0) {
+          bossActive = false;
+          createExplosion(boss.x + boss.w/2, boss.y + boss.h/2);
+          createExplosion(boss.x + boss.w/3, boss.y + boss.h/3);
+          createExplosion(boss.x + 2*boss.w/3, boss.y + 2*boss.h/3);
+          score += 1500;
+          currentBossIdx++;
+          
+          const nextPhase = PHASES[currentPhaseIdx];
+          if (currentBossIdx >= nextPhase.bosses.length) {
+            currentPhaseIdx++;
+            currentBossIdx = 0;
+            if (currentPhaseIdx < PHASES.length) showPhaseTransition(PHASES[currentPhaseIdx].name);
+          }
+          setTimeout(spawnWave, 1200);
+        }
+        break;
+      }
       for (let e of enemies) {
         if (!e.alive) continue;
         if (rectIntersect(pBullets[i], e)) {
           e.alive = false;
           createExplosion(e.x + e.w / 2, e.y + e.h / 2);
           pBullets.splice(i, 1);
-          score += 100;
-          playSound('explode');
+          score += 100; playSound('explode');
           break;
         }
       }
     }
 
-    // ✨ Partículas & 🌌 Estrellas
-    for (let i = particles.length - 1; i >= 0; i--) {
-      particles[i].x += particles[i].vx; particles[i].y += particles[i].vy; particles[i].life--;
-      if (particles[i].life <= 0) particles.splice(i, 1);
-    }
+    for (let i = particles.length - 1; i >= 0; i--) { particles[i].x += particles[i].vx; particles[i].y += particles[i].vy; particles[i].life--; if (particles[i].life <= 0) particles.splice(i, 1); }
     for (let s of stars) { s.y += s.speed; if (s.y > H) s.y = 0; }
-
-    if (activeCount === 0) spawnWave();
   }
 
   function draw() {
@@ -396,65 +383,48 @@ window.addEventListener('DOMContentLoaded', () => {
     ctx.fillStyle = '#fff';
     for (let s of stars) { ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill(); }
 
-    // 🚀 Jugador
-    if (playerImg.complete && playerImg.naturalWidth > 0) {
-      ctx.drawImage(playerImg, player.x, player.y, player.w, player.h);
-    } else {
-      ctx.fillStyle = '#0af'; 
-      ctx.fillRect(player.x, player.y, player.w, player.h);
-    }
+    if (imgs.player.complete && imgs.player.naturalWidth > 0) ctx.drawImage(imgs.player, player.x, player.y, player.w, player.h);
+    else { ctx.fillStyle = '#0af'; ctx.fillRect(player.x, player.y, player.w, player.h); }
 
-    // 👾 Enemigos
-    for (let e of enemies) {
-      if (!e.alive) continue;
-      let img;
-      if (e.type === 'valefor') img = valeforImg;
-      else if (e.type === 'nandors') img = nandorsImg;
-      else if (e.type === 'pepino') img = pepinoImg;
-      else img = koalaImg; // 🆕 Koala
-      
-      if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, e.x, e.y, e.w, e.h);
-      else {
-        // Fallbacks por tipo
-        if (e.type === 'valefor') ctx.fillStyle = '#f0a';
-        else if (e.type === 'nandors') ctx.fillStyle = '#0f0';
-        else if (e.type === 'pepino') ctx.fillStyle = '#a0f';
-        else ctx.fillStyle = '#bbb'; // Koala fallback (gris claro)
-        
-        if (e.behavior === 'normal' && e.isDiving && e.colorShift) ctx.fillStyle = '#ff0000';
-        ctx.fillRect(e.x, e.y, e.w, e.h);
+    if (!bossActive) {
+      for (let e of enemies) {
+        if (!e.alive) continue;
+        let img = imgs[e.type];
+        if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, e.x, e.y, e.w, e.h);
+        else {
+          ctx.fillStyle = fallbackColors[e.type];
+          if (e.behavior === 'normal' && e.isDiving && e.colorShift) ctx.fillStyle = '#ff0000';
+          ctx.fillRect(e.x, e.y, e.w, e.h);
+        }
       }
     }
 
-    // 🔫 Balas
-    ctx.fillStyle = '#ff0'; for (let b of pBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
-    ctx.fillStyle = '#f00'; for (let b of aBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
-
-    // 💥 Explosiones
-    for (let p of particles) {
-      ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 40;
-      ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+    if (bossActive) {
+      let img = imgs[boss.type];
+      if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, boss.x, boss.y, boss.w, boss.h);
+      else { ctx.fillStyle = fallbackColors[boss.type]; ctx.fillRect(boss.x, boss.y, boss.w, boss.h); }
+      
+      ctx.fillStyle = '#333'; ctx.fillRect(boss.x + 10, boss.y + boss.h + 10, boss.w - 20, 10);
+      ctx.fillStyle = boss.hp > boss.maxHp * 0.3 ? '#0f0' : '#f00';
+      ctx.fillRect(boss.x + 10, boss.y + boss.h + 10, Math.max(0, (boss.hp / boss.maxHp) * (boss.w - 20)), 10);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(`JEFE: ${boss.type.toUpperCase()}`, W/2, boss.y + boss.h + 35); ctx.textAlign = 'start';
     }
 
-    // 📊 UI
+    ctx.fillStyle = '#ff0'; for (let b of pBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.fillStyle = '#f00'; for (let b of aBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
+    for (let p of particles) { ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 40; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
+
+    const phase = PHASES[currentPhaseIdx];
     ctx.fillStyle = '#fff'; ctx.font = 'bold 16px monospace';
     ctx.fillText(`SCORE: ${score}`, 10, 20);
-    ctx.fillText(`WAVE: ${waveCount}`, W / 2 - 30, 20);
-    ctx.fillText(`ENEMIES: ${enemies.filter(e=>e.alive).length}`, W - 110, 20);
+    ctx.fillText(`${phase.name}`, W / 2 - 40, 20);
+    const nextBoss = currentBossIdx < phase.bosses.length ? phase.bosses[currentBossIdx] : null;
+    ctx.fillText(`NEXT: ${nextBoss ? nextBoss.type.toUpperCase() : 'END'}`, W - 150, 20);
   }
 
-  function loop() {
-    if (!gameRunning) return;
-    update(); draw();
-    requestAnimationFrame(loop);
-  }
-
-  document.getElementById('overlay').addEventListener('click', () => {
-    initAudio();
-    gameRunning = true;
-    document.getElementById('overlay').classList.add('hidden');
-    loop();
-  });
+  function loop() { if (!gameRunning) return; update(); draw(); requestAnimationFrame(loop); }
+  document.getElementById('overlay').addEventListener('click', () => { initAudio(); gameRunning = true; document.getElementById('overlay').classList.add('hidden'); loop(); });
 });
 </script>
 </body>
