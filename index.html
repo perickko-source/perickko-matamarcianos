@@ -20,19 +20,26 @@
       image-rendering: pixelated;
       touch-action: none; background: #000;
     }
-    #overlay, #rotate-warning, #phase-msg, #victory-screen {
+    #overlay, #rotate-warning, #phase-msg, #victory-screen, #game-over-screen {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       display: flex; flex-direction: column; justify-content: center; align-items: center;
       background: rgba(0,0,0,0.85); color: #fff; font-family: monospace; cursor: pointer; z-index: 10;
       text-align: center; padding: 20px; pointer-events: none;
     }
     #victory-screen { background: rgba(0,0,10,0.95); pointer-events: auto; display: none; }
-    #victory-screen h1 { font-size: 32px; color: #0f0; text-shadow: 0 0 15px #0f0; margin-bottom: 10px; }
-    #victory-screen p { margin: 5px 0; color: #aaa; }
-    #victory-screen button {
-      margin-top: 20px; padding: 10px 20px; font-family: monospace; font-size: 16px;
-      background: #0af; border: none; color: #000; cursor: pointer; pointer-events: auto;
+    #game-over-screen { background: rgba(10,0,0,0.95); pointer-events: auto; display: none; }
+    #victory-screen h1, #game-over-screen h1 {
+      font-size: 32px; text-shadow: 0 0 15px; margin-bottom: 10px;
     }
+    #victory-screen h1 { color: #0f0; text-shadow-color: #0f0; }
+    #game-over-screen h1 { color: #f00; text-shadow-color: #f00; }
+    #game-over-screen p, #victory-screen p { margin: 5px 0; color: #aaa; font-size: 18px; }
+    #game-over-screen button, #victory-screen button {
+      margin-top: 20px; padding: 10px 25px; font-family: monospace; font-size: 18px; font-weight: bold;
+      border: none; color: #000; cursor: pointer; pointer-events: auto;
+    }
+    #game-over-screen button { background: #f00; }
+    #victory-screen button { background: #0f0; }
     #phase-msg { display: none; background: transparent; z-index: 15; transition: opacity 0.3s; }
     #phase-msg h2 { font-size: 36px; text-shadow: 0 0 15px #0af; animation: pop 0.5s ease-out; }
     @keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
@@ -63,9 +70,15 @@
 
 <div id="victory-screen">
   <h1>🏆 ¡VICTORIA! 🏆</h1>
-  <p id="final-score">Puntuación Final: 0</p>
-  <p>Has completado las 2 fases</p>
+  <p id="victory-score">Puntuación Final: 0</p>
+  <p id="victory-msg">Has completado las 3 fases</p>
   <button id="restart-btn">JUGAR DE NUEVO</button>
+</div>
+
+<div id="game-over-screen">
+  <h1>💀 GAME OVER 💀</h1>
+  <p id="game-over-score">Puntuación Final: 0</p>
+  <button id="retry-btn">REINTENTAR</button>
 </div>
 
 <script>
@@ -83,20 +96,24 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('orientationchange', checkOrientation);
   checkOrientation();
 
-  // 🖼️ ASSETS
+  // 🖼️ ASSETS (Cebollo añadido)
   const imgs = {
     carlitos: new Image(), kiko: new Image(), koala: new Image(),
-    nandors: new Image(), pepino: new Image(), perickko: new Image(), valefor: new Image(),
+    nandors: new Image(), pepino: new Image(), perickko: new Image(), valefor: new Image(), paola: new Image(),
+    enrique: new Image(),
+    cebollo: new Image(), // 🆕
     player: new Image()
   };
   for(let key in imgs) imgs[key].src = key === 'player' ? 'nave.png' : `${key}.png`;
 
   const fallbackColors = {
     carlitos: '#f8a000', kiko: '#ff0', koala: '#bbb',
-    nandors: '#0f0', pepino: '#a0f', perickko: '#00ffff', valefor: '#f0a'
+    nandors: '#0f0', pepino: '#a0f', perickko: '#00ffff', valefor: '#f0a', paola: '#ff007f',
+    enrique: '#ff6600',
+    cebollo: '#88cc88' // 🆕 Color fallback (verde cebolla)
   };
 
-  // 🔊 AUDIO OPTIMIZADO
+  // 🔊 AUDIO
   let audioCtx = null;
   function initAudio() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -154,6 +171,16 @@ window.addEventListener('DOMContentLoaded', () => {
         g.gain.exponentialRampToValueAtTime(0.001, st + 0.6);
         osc.start(st); osc.stop(st + 0.6);
       });
+    } else if (type === 'extraLife') {
+      [880, 1100, 1320].forEach((freq, i) => {
+        const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+        osc.connect(g); g.connect(audioCtx.destination);
+        const st = t + i * 0.1;
+        osc.type = 'sine'; osc.frequency.setValueAtTime(freq, st);
+        g.gain.setValueAtTime(0.1, st);
+        g.gain.exponentialRampToValueAtTime(0.01, st + 0.08);
+        osc.start(st); osc.stop(st + 0.08);
+      });
     }
   }
 
@@ -162,6 +189,11 @@ window.addEventListener('DOMContentLoaded', () => {
   let score = 0;
   let transitioning = false;
   let gameWon = false;
+  let lives = 3;
+  let extraLifeThreshold = 5000;
+  let isInvincible = false;
+  let invincibleTimer = 0;
+  
   const keys = {};
   window.addEventListener('keydown', e => keys[e.code] = true);
   window.addEventListener('keyup', e => keys[e.code] = false);
@@ -191,20 +223,26 @@ window.addEventListener('DOMContentLoaded', () => {
   const pBullets = [], aBullets = [];
   const particles = [];
 
-  // 🏆 FASES Y JEFES
+  // 🏆 FASES Y JEFES (Cebollo añadido)
   const PHASES = [
-    { name: "FASE 1", enemies: ['carlitos', 'kiko', 'koala'], bosses: [
-      { type: 'carlitos', threshold: 3500, hp: 20 },
-      { type: 'kiko',     threshold: 7000, hp: 30 },
-      { type: 'koala',    threshold: 10500, hp: 30 }
+    { name: "FASE 1", enemies: ['kiko', 'koala', 'enrique'], bosses: [
+      { type: 'koala',    threshold: 3500,  hp: 20 },
+      { type: 'enrique',  threshold: 7500,  hp: 30 },
+      { type: 'kiko',     threshold: 12000, hp: 40 }
     ]},
-    { name: "FASE 2", enemies: ['nandors', 'pepino', 'perickko', 'valefor'], bosses: [
-      { type: 'nandors',  threshold: 14000, hp: 40 },
-      { type: 'pepino',   threshold: 18500, hp: 50 },
-      { type: 'perickko', threshold: 23500, hp: 60 },
-      { type: 'valefor',  threshold: 29000, hp: 70 }
+    { name: "FASE 2", enemies: ['carlitos', 'pepino', 'perickko'], bosses: [
+      { type: 'carlitos', threshold: 18000, hp: 50 },
+      { type: 'pepino',   threshold: 27000, hp: 60 },
+      { type: 'perickko', threshold: 38000, hp: 70 }
+    ]},
+    { name: "FASE 3", enemies: ['nandors', 'paola', 'valefor', 'cebollo'], bosses: [
+      { type: 'paola',    threshold: 52000,  hp: 80 },
+      { type: 'nandors',  threshold: 70000,  hp: 90 },
+      { type: 'valefor',  threshold: 92000,  hp: 100 },
+      { type: 'cebollo',  threshold: 120000, hp: 110 } // 🆕 Jefe final de la fase
     ]}
   ];
+
   let currentPhaseIdx = 0;
   let currentBossIdx = 0;
   let enemies = [];
@@ -214,7 +252,7 @@ window.addEventListener('DOMContentLoaded', () => {
   let bossActive = false;
   let boss = { x: 0, y: 0, w: 140, h: 140, hp: 0, maxHp: 0, type: '', phase: 'enter', angle: 0, shootTimer: 0 };
 
-  // 🛡️ UI SIN PARÓN
+  // 🛡️ UI FUNCIONES
   function showPhaseTransition(text) {
     setTimeout(() => {
       const el = document.getElementById('phase-msg');
@@ -228,9 +266,16 @@ window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       gameWon = true;
       gameRunning = false;
-      document.getElementById('final-score').textContent = `Puntuación Final: ${score}`;
+      document.getElementById('victory-score').textContent = `Puntuación Final: ${score}`;
+      document.getElementById('victory-msg').textContent = `Has completado las ${PHASES.length} fases`;
       document.getElementById('victory-screen').style.display = 'flex';
     }, 50);
+  }
+
+  function showGameOver() {
+    gameRunning = false;
+    document.getElementById('game-over-score').textContent = `Puntuación Final: ${score}`;
+    document.getElementById('game-over-screen').style.display = 'flex';
   }
 
   function spawnWave() {
@@ -240,7 +285,16 @@ window.addEventListener('DOMContentLoaded', () => {
     const phase = PHASES[currentPhaseIdx];
     const margin = 20;
     const spacing = (W - margin * 2 - 70 * 3) / 2;
-    const behaviorType = Math.random() < 0.6 ? 'normal' : (Math.random() < 0.8 ? 'circle_left' : 'circle_right');
+    
+    // Velocidad controlada por fase
+    const phaseSpeed = 0.8 + (currentPhaseIdx * 0.2); // F1:0.8 | F2:1.0 | F3:1.2
+    
+    const rand = Math.random();
+    let behaviorType;
+    if (rand < 0.55) behaviorType = 'normal';
+    else if (rand < 0.75) behaviorType = 'circle_left';
+    else if (rand < 0.90) behaviorType = 'zigzag'; // Zig-Zag con rebote
+    else behaviorType = 'circle_right';
 
     for (let i = 0; i < 3; i++) {
       let type = phase.enemies[Math.floor(Math.random() * phase.enemies.length)];
@@ -250,8 +304,15 @@ window.addEventListener('DOMContentLoaded', () => {
         e.x = margin + i * (70 + spacing);
         e.y = -70 - (Math.random() * 100);
         e.baseX = margin + i * (70 + spacing);
-        e.phase = i * 2.2; e.vy = 0.5 + (waveCount * 0.04); e.isDiving = false; e.colorShift = 0;
-      } else if (behaviorType === 'circle_left') {
+        e.phase = i * 2.2; e.vy = phaseSpeed; e.isDiving = false; e.colorShift = 0;
+      } 
+      else if (behaviorType === 'zigzag') {
+        e.x = margin + i * (70 + spacing);
+        e.y = -70 - (Math.random() * 100);
+        e.dx = (Math.random() > 0.5 ? 1.8 : -1.8) + (Math.random() * 0.6 - 0.3);
+        e.vy = phaseSpeed;
+      }
+      else if (behaviorType === 'circle_left') {
         e.x = -80 - (i * 90); e.y = 300; e.state = 'enter';
         e.angle = Math.PI; e.circleProgress = 0; e.angularSpeed = 0.025; e.attackSpeed = 3.2; e.shootTimer = 0;
       } else {
@@ -280,24 +341,42 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   function resetGame() {
-    score = 0; currentPhaseIdx = 0; currentBossIdx = 0;
+    score = 0; 
+    lives = 3;
+    extraLifeThreshold = 5000;
+    currentPhaseIdx = 0; currentBossIdx = 0;
     bossActive = false; transitioning = false; gameWon = false;
+    isInvincible = false;
     waveCount = 0; enemies = []; pBullets.length = 0; aBullets.length = 0; particles.length = 0;
     boss = { x: 0, y: 0, w: 140, h: 140, hp: 0, maxHp: 0, type: '', phase: 'enter', angle: 0, shootTimer: 0 };
+    player.x = W / 2 - 32;
     document.getElementById('victory-screen').style.display = 'none';
+    document.getElementById('game-over-screen').style.display = 'none';
     spawnWave();
     gameRunning = true;
     loop();
   }
 
-  document.getElementById('restart-btn').addEventListener('click', () => {
-    initAudio();
-    resetGame();
-  });
+  document.getElementById('restart-btn').addEventListener('click', () => { initAudio(); resetGame(); });
+  document.getElementById('retry-btn').addEventListener('click', () => { initAudio(); resetGame(); });
+
+  function playerHit() {
+    if (isInvincible) return;
+    lives--;
+    isInvincible = true;
+    invincibleTimer = 120;
+    createExplosion(player.x + player.w/2, player.y + player.h/2);
+    playSound('explode');
+    player.x = W / 2 - player.w / 2;
+    if (lives <= 0) showGameOver();
+  }
 
   function update() {
     if (gameWon) return;
     time += 0.016;
+    
+    if (score >= extraLifeThreshold) { lives++; extraLifeThreshold += 5000; playSound('extraLife'); }
+    if (isInvincible) { invincibleTimer--; if (invincibleTimer <= 0) isInvincible = false; }
     
     if (!isTouching) {
       if ((keys['ArrowLeft'] || keys['KeyA']) && player.x > 0) player.x -= player.speed;
@@ -324,6 +403,7 @@ window.addEventListener('DOMContentLoaded', () => {
       for (let e of enemies) {
         if (!e.alive) continue;
         activeCount++;
+        
         if (e.behavior === 'normal') {
           e.x = e.baseX + Math.sin(time * 2.2 + e.phase) * 35;
           if (e.x < 0) e.x = 0; if (e.x + e.w > W) e.x = W - e.w;
@@ -332,6 +412,13 @@ window.addEventListener('DOMContentLoaded', () => {
           if (e.isDiving) e.colorShift = Math.sin(time * 20) > 0 ? 1 : 0;
           if (e.y > H + 100) e.alive = false;
         } 
+        else if (e.behavior === 'zigzag') {
+          e.x += e.dx;
+          e.y += e.vy;
+          if (e.x <= 0) { e.x = 0; e.dx = -e.dx; }
+          if (e.x + e.w >= W) { e.x = W - e.w; e.dx = -e.dx; }
+          if (e.y > H + 100) e.alive = false;
+        }
         else if (e.behavior === 'circle_left') {
           if (e.state === 'enter') { e.x += 3; if (e.x >= 100) { e.state = 'circle'; e.circleProgress = 0; e.angle = Math.PI; } }
           else if (e.state === 'circle') {
@@ -377,8 +464,7 @@ window.addEventListener('DOMContentLoaded', () => {
           for(let off of [-1.5, -0.5, 0.5, 1.5]) {
             aBullets.push({ x: boss.x + boss.w/2 - 2 + off*12, y: boss.y + boss.h, w: 5, h: 12, speed: 4 });
           }
-          playSound('alienShoot');
-          boss.shootTimer = 0;
+          playSound('alienShoot'); boss.shootTimer = 0;
         }
       }
     }
@@ -405,41 +491,41 @@ window.addEventListener('DOMContentLoaded', () => {
         createExplosion(pBullets[i].x, pBullets[i].y);
         pBullets.splice(i, 1);
         if (boss.hp <= 0) {
-          bossActive = false;
-          transitioning = true;
-          playSound('bossDefeat');
+          bossActive = false; transitioning = true; playSound('bossDefeat');
           createExplosion(boss.x + boss.w/2, boss.y + boss.h/2);
           createExplosion(boss.x + boss.w/3, boss.y + boss.h/3);
           createExplosion(boss.x + 2*boss.w/3, boss.y + 2*boss.h/3);
-          score += 1500;
-          currentBossIdx++;
-          
+          score += 1500; currentBossIdx++;
           setTimeout(() => {
             if (currentBossIdx >= PHASES[currentPhaseIdx].bosses.length) {
               currentPhaseIdx++;
-              if (currentPhaseIdx >= PHASES.length) {
-                showVictory();
-              } else {
-                currentBossIdx = 0;
-                showPhaseTransition(PHASES[currentPhaseIdx].name);
-              }
+              if (currentPhaseIdx >= PHASES.length) showVictory();
+              else { currentBossIdx = 0; showPhaseTransition(PHASES[currentPhaseIdx].name); }
             }
-            transitioning = false;
-            spawnWave();
+            transitioning = false; spawnWave();
           }, 1200);
-          break;
         }
+        break;
       }
       for (let e of enemies) {
         if (!e.alive) continue;
         if (rectIntersect(pBullets[i], e)) {
-          e.alive = false;
-          createExplosion(e.x + e.w / 2, e.y + e.h / 2);
-          pBullets.splice(i, 1);
-          score += 100; playSound('explode');
-          break;
+          e.alive = false; createExplosion(e.x + e.w / 2, e.y + e.h / 2);
+          pBullets.splice(i, 1); score += 100; playSound('explode'); break;
         }
       }
+    }
+
+    if (!isInvincible) {
+      for (let i = aBullets.length - 1; i >= 0; i--) {
+        if (rectIntersect(aBullets[i], player)) { playerHit(); aBullets.splice(i, 1); break; }
+      }
+      for (let e of enemies) {
+        if (e.alive && rectIntersect(e, player)) {
+          playerHit(); e.alive = false; createExplosion(e.x + e.w/2, e.y + e.h/2); playSound('explode'); break;
+        }
+      }
+      if (bossActive && rectIntersect(boss, player)) playerHit();
     }
 
     for (let i = particles.length - 1; i >= 0; i--) { particles[i].x += particles[i].vx; particles[i].y += particles[i].vy; particles[i].life--; if (particles[i].life <= 0) particles.splice(i, 1); }
@@ -451,8 +537,22 @@ window.addEventListener('DOMContentLoaded', () => {
     ctx.fillStyle = '#fff';
     for (let s of stars) { ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill(); }
 
-    if (imgs.player.complete && imgs.player.naturalWidth > 0) ctx.drawImage(imgs.player, player.x, player.y, player.w, player.h);
-    else { ctx.fillStyle = '#0af'; ctx.fillRect(player.x, player.y, player.w, player.h); }
+    if (!isInvincible || Math.floor(time * 10) % 2 === 0) {
+      if (imgs.player.complete && imgs.player.naturalWidth > 0) ctx.drawImage(imgs.player, player.x, player.y, player.w, player.h);
+      else { ctx.fillStyle = '#0af'; ctx.fillRect(player.x, player.y, player.w, player.h); }
+    }
+
+    const lifeSize = 25;
+    const padding = 8;
+    const startY = H - lifeSize - 5;
+    for (let i = 0; i < lives; i++) {
+      if (imgs.player.complete && imgs.player.naturalWidth > 0) {
+        ctx.drawImage(imgs.player, 10 + i * (lifeSize + padding), startY, lifeSize, lifeSize);
+      } else {
+        ctx.fillStyle = '#0af';
+        ctx.fillRect(10 + i * (lifeSize + padding), startY, lifeSize, lifeSize);
+      }
+    }
 
     if (!bossActive) {
       for (let e of enemies) {
@@ -471,7 +571,6 @@ window.addEventListener('DOMContentLoaded', () => {
       let img = imgs[boss.type];
       if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, boss.x, boss.y, boss.w, boss.h);
       else { ctx.fillStyle = fallbackColors[boss.type]; ctx.fillRect(boss.x, boss.y, boss.w, boss.h); }
-      
       ctx.fillStyle = '#333'; ctx.fillRect(boss.x + 10, boss.y + boss.h + 10, boss.w - 20, 10);
       ctx.fillStyle = boss.hp > boss.maxHp * 0.3 ? '#0f0' : '#f00';
       ctx.fillRect(boss.x + 10, boss.y + boss.h + 10, Math.max(0, (boss.hp / boss.maxHp) * (boss.w - 20)), 10);
