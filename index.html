@@ -71,7 +71,7 @@
 <div id="victory-screen">
   <h1>🏆 ¡VICTORIA! 🏆</h1>
   <p id="victory-score">Puntuación Final: 0</p>
-  <p id="victory-msg">Has completado las 3 fases</p>
+  <p id="victory-msg">Has completado las 4 fases</p>
   <button id="restart-btn">JUGAR DE NUEVO</button>
 </div>
 
@@ -96,21 +96,23 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('orientationchange', checkOrientation);
   checkOrientation();
 
-  // 🖼️ ASSETS (Cebollo añadido)
+  // 🖼️ ASSETS
   const imgs = {
     carlitos: new Image(), kiko: new Image(), koala: new Image(),
     nandors: new Image(), pepino: new Image(), perickko: new Image(), valefor: new Image(), paola: new Image(),
-    enrique: new Image(),
-    cebollo: new Image(), // 🆕
+    enrique: new Image(), cebollo: new Image(),
+    manoli: new Image(),
+    spikeMike: new Image(), // spike-mike.png
     player: new Image()
   };
-  for(let key in imgs) imgs[key].src = key === 'player' ? 'nave.png' : `${key}.png`;
+  for(let key in imgs) imgs[key].src = key === 'player' ? 'nave.png' : (key === 'spikeMike' ? 'spike-mike.png' : `${key}.png`);
 
   const fallbackColors = {
     carlitos: '#f8a000', kiko: '#ff0', koala: '#bbb',
     nandors: '#0f0', pepino: '#a0f', perickko: '#00ffff', valefor: '#f0a', paola: '#ff007f',
-    enrique: '#ff6600',
-    cebollo: '#88cc88' // 🆕 Color fallback (verde cebolla)
+    enrique: '#ff6600', cebollo: '#88cc88',
+    manoli: '#ff99cc',
+    spikeMike: '#66ff66'
   };
 
   // 🔊 AUDIO
@@ -223,7 +225,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const pBullets = [], aBullets = [];
   const particles = [];
 
-  // 🏆 FASES Y JEFES (Cebollo añadido)
+  // 🏆 FASES Y JEFES (Reorganizado + Fase 4 añadida)
   const PHASES = [
     { name: "FASE 1", enemies: ['kiko', 'koala', 'enrique'], bosses: [
       { type: 'koala',    threshold: 3500,  hp: 20 },
@@ -235,11 +237,15 @@ window.addEventListener('DOMContentLoaded', () => {
       { type: 'pepino',   threshold: 27000, hp: 60 },
       { type: 'perickko', threshold: 38000, hp: 70 }
     ]},
-    { name: "FASE 3", enemies: ['nandors', 'paola', 'valefor', 'cebollo'], bosses: [
-      { type: 'paola',    threshold: 52000,  hp: 80 },
-      { type: 'nandors',  threshold: 70000,  hp: 90 },
-      { type: 'valefor',  threshold: 92000,  hp: 100 },
-      { type: 'cebollo',  threshold: 120000, hp: 110 } // 🆕 Jefe final de la fase
+    { name: "FASE 3", enemies: ['manoli', 'nandors', 'valefor'], bosses: [
+      { type: 'manoli',   threshold: 40000,  hp: 80 },
+      { type: 'nandors',  threshold: 60000,  hp: 90 },
+      { type: 'valefor',  threshold: 85000,  hp: 100 }
+    ]},
+    { name: "FASE 4", enemies: ['paola', 'cebollo', 'spikeMike'], bosses: [
+      { type: 'paola',     threshold: 115000, hp: 110 },
+      { type: 'spikeMike', threshold: 150000, hp: 120 },
+      { type: 'cebollo',   threshold: 190000, hp: 130 }
     ]}
   ];
 
@@ -287,13 +293,14 @@ window.addEventListener('DOMContentLoaded', () => {
     const spacing = (W - margin * 2 - 70 * 3) / 2;
     
     // Velocidad controlada por fase
-    const phaseSpeed = 0.8 + (currentPhaseIdx * 0.2); // F1:0.8 | F2:1.0 | F3:1.2
+    const phaseSpeed = 0.8 + (currentPhaseIdx * 0.2); // F1:0.8 | F2:1.0 | F3:1.2 | F4:1.4
     
     const rand = Math.random();
     let behaviorType;
-    if (rand < 0.55) behaviorType = 'normal';
-    else if (rand < 0.75) behaviorType = 'circle_left';
-    else if (rand < 0.90) behaviorType = 'zigzag'; // Zig-Zag con rebote
+    if (rand < 0.50) behaviorType = 'normal';
+    else if (rand < 0.65) behaviorType = 'circle_left';
+    else if (rand < 0.75) behaviorType = 'zigzag';
+    else if (rand < 0.85) behaviorType = 'pendulum';
     else behaviorType = 'circle_right';
 
     for (let i = 0; i < 3; i++) {
@@ -311,6 +318,14 @@ window.addEventListener('DOMContentLoaded', () => {
         e.y = -70 - (Math.random() * 100);
         e.dx = (Math.random() > 0.5 ? 1.8 : -1.8) + (Math.random() * 0.6 - 0.3);
         e.vy = phaseSpeed;
+      }
+      else if (behaviorType === 'pendulum') {
+        e.x = margin + i * (70 + spacing);
+        e.y = -70 - (Math.random() * 50);
+        e.vy = phaseSpeed * 0.3; // Baja muy lento mientras oscila
+        e.pendTimer = 0;
+        e.diving = false;
+        e.diveSpeed = phaseSpeed * 4;
       }
       else if (behaviorType === 'circle_left') {
         e.x = -80 - (i * 90); e.y = 300; e.state = 'enter';
@@ -417,6 +432,19 @@ window.addEventListener('DOMContentLoaded', () => {
           e.y += e.vy;
           if (e.x <= 0) { e.x = 0; e.dx = -e.dx; }
           if (e.x + e.w >= W) { e.x = W - e.w; e.dx = -e.dx; }
+          if (e.y > H + 100) e.alive = false;
+        }
+        else if (e.behavior === 'pendulum') {
+          e.pendTimer++;
+          if (!e.diving) {
+            e.x += Math.sin(time * 5 + e.type.charCodeAt(0)) * 2;
+            e.y += e.vy;
+            if (e.pendTimer > 180) e.diving = true;
+          } else {
+            e.y += e.diveSpeed;
+            if (e.x < player.x) e.x += 1.5;
+            else e.x -= 1.5;
+          }
           if (e.y > H + 100) e.alive = false;
         }
         else if (e.behavior === 'circle_left') {
@@ -544,7 +572,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const lifeSize = 25;
     const padding = 8;
-    const startY = H - lifeSize - 5;
+    const startY = H - lifeSize + 10;
     for (let i = 0; i < lives; i++) {
       if (imgs.player.complete && imgs.player.naturalWidth > 0) {
         ctx.drawImage(imgs.player, 10 + i * (lifeSize + padding), startY, lifeSize, lifeSize);
