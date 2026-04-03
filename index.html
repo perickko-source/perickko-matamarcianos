@@ -195,7 +195,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   let currentPhaseIdx = 0, currentBossIdx = 0, enemies = [], waveCount = 0, time = 0, alienShootTimer = 0;
   let bossActive = false;
-  let boss = { x:0, y:0, w:140, h:140, hp:0, maxHp:0, type:'', phase:'enter', pattern:'', state:'idle', dirX:1, sweep:0, angle:0, shootTimer:0, spiralAngle:0, fanAngle:0, cycleTimer:0, cycleIdx:0, rngTimer:0, rngPattern:'oscillator' };
+  let boss = { x:0, y:0, w:140, h:140, hp:0, maxHp:0, type:'', phase:'enter', pattern:'', state:'idle', dirX:1, sweep:0, angle:0, shootTimer:0, spiralAngle:0, fanAngle:0, cycleTimer:0, cycleIdx:0, rngTimer:0, rngPattern:'oscillator', wallGap: 7 };
 
   function showPhaseTransition(txt) {
     setTimeout(() => {
@@ -255,13 +255,14 @@ window.addEventListener('DOMContentLoaded', () => {
     boss.pattern = c.pattern || 'oscillator';
     boss.state='idle'; boss.dirX=1; boss.sweep=0; boss.shootTimer=0; boss.angle=0; boss.spiralAngle=0; boss.fanAngle=0;
     boss.cycleTimer=0; boss.cycleIdx=0; boss.rngTimer=0; boss.rngPattern='oscillator';
+    boss.wallGap = 7; // ✅ Inicializa pasillo
     bossActive=true; transitioning=true; setTimeout(()=>transitioning=false, 800); playSound('bossAppear');
   }
 
   function resetGame() {
     score=0; lives=3; extraLifeThreshold=5000; currentPhaseIdx=0; currentBossIdx=0; bossActive=false; transitioning=false; gameWon=false; isInvincible=false;
     waveCount=0; enemies=[]; pBullets.length=0; aBullets.length=0; particles.length=0;
-    boss={x:0,y:0,w:140,h:140,hp:0,maxHp:0,type:'',phase:'enter',pattern:'oscillator',state:'idle',dirX:1,sweep:0,angle:0,shootTimer:0,spiralAngle:0,fanAngle:0,cycleTimer:0,cycleIdx:0,rngTimer:0,rngPattern:'oscillator'};
+    boss={x:0,y:0,w:140,h:140,hp:0,maxHp:0,type:'',phase:'enter',pattern:'oscillator',state:'idle',dirX:1,sweep:0,angle:0,shootTimer:0,spiralAngle:0,fanAngle:0,cycleTimer:0,cycleIdx:0,rngTimer:0,rngPattern:'oscillator',wallGap:7};
     player.x=W/2-32; player.y=H-95;
     document.getElementById('victory-screen').style.display='none'; document.getElementById('game-over-screen').style.display='none';
     spawnWave(); gameRunning=true; loop();
@@ -330,9 +331,9 @@ window.addEventListener('DOMContentLoaded', () => {
             boss.x = W/2-70+Math.sin(boss.angle)*85;
             if(boss.shootTimer>=25){for(let o of[-1.5,-0.5,0.5,1.5])aBullets.push({x:boss.x+boss.w/2-2+o*12,y:boss.y+boss.h,w:5,h:12,s:4});boss.shootTimer=0;}
             break;
-          case 'charge': // Enrique ✅ CORREGIDO (Barrido lateral continuo)
+          case 'charge': // Enrique
             if(boss.state==='idle'){
-              boss.x = W/2 - 70 + Math.sin(time * 1.8) * 110; // Cubre izq y der
+              boss.x = W/2 - 70 + Math.sin(time * 1.8) * 110;
               if(boss.shootTimer > 60){ boss.state='charge'; boss.timer=0; }
             } else if(boss.state==='charge'){
               let d = player.x - boss.x;
@@ -363,9 +364,9 @@ window.addEventListener('DOMContentLoaded', () => {
             boss.x=200+Math.sin(time*2)*110; boss.y=60;
             if(boss.shootTimer>=8){aBullets.push({x:boss.x+boss.w/2-2,y:boss.y+boss.h,w:4,h:12,s:1.8,vy:1.8,accel:0.06});boss.shootTimer=0;}
             break;
-          case 'curve': // Perickko ✅ CORREGIDO (Más espacio entre ráfagas)
+          case 'curve': // Perickko
             boss.x += Math.sin(time)*1.8*speedM; boss.y = 140 + Math.cos(time*0.5)*35;
-            if(boss.shootTimer >= 65) { // ⏱️ 1.1s entre ráfagas
+            if(boss.shootTimer >= 65) {
               for(let i=-1; i<=1; i++){
                 let dx = (player.x+player.w/2) - (boss.x+boss.w/2) + i*40;
                 let dy = (player.y+player.h/2) - (boss.y+boss.h);
@@ -380,9 +381,20 @@ window.addEventListener('DOMContentLoaded', () => {
             boss.spiralAngle+=0.22*speedM;
             if(boss.shootTimer>=5){aBullets.push({x:boss.x+boss.w/2,y:boss.y+boss.h,w:4,h:12,s:3.6,vx:Math.cos(boss.spiralAngle)*3.6,vy:Math.sin(boss.spiralAngle)*3.6});boss.shootTimer=0;}
             break;
-          case 'wall': // Nandors
-            boss.x=W/2-70+Math.sin(time)*35; boss.y=90+(time*6)%60;
-            if(boss.shootTimer>=55){let g1=Math.floor(Math.random()*8),g2=(g1+4)%12;for(let i=0;i<12;i++){if(i!==g1&&i!==g2)aBullets.push({x:boss.x-100+i*20,y:boss.y+boss.h,w:4,h:12,s:2.6});}boss.shootTimer=0;}
+          case 'wall': // Nandors ✅ MEJORADO (Pasillo claro y desplazable)
+            boss.x = W/2 - 70 + Math.sin(time * 1.2) * 35;
+            boss.y = 110 + Math.cos(time * 0.8) * 25;
+            if(boss.shootTimer >= 75) { // ~1.25s entre muros
+              // Desplazar el pasillo suavemente
+              boss.wallGap += Math.random() > 0.6 ? (Math.random() > 0.5 ? 1 : -1) : 0;
+              boss.wallGap = Math.max(3, Math.min(11, boss.wallGap));
+              const gapWidth = 3; // Ancho del pasillo
+              for(let i = 0; i < 14; i++) {
+                if(i >= boss.wallGap - 1 && i <= boss.wallGap + 1) continue; // Espacio de paso
+                aBullets.push({x: boss.x - 126 + i*20, y: boss.y + boss.h, w:4, h:12, s:2.0});
+              }
+              boss.shootTimer = 0;
+            }
             break;
           case 'dualfan': // Valefor
             boss.x+=Math.sin(time*3.5)*3.5*speedM; boss.y=150+Math.cos(time)*25;
@@ -424,7 +436,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if(b.accel) b.vy+=b.accel;
         if(b.curve){
           b.age = (b.age||0)+1;
-          if(b.age < 20) { // Curva más suave y corta
+          if(b.age < 20) {
              let dx=player.x+player.w/2-b.x, dy=player.y+player.h/2-b.y, d=Math.sqrt(dx*dx+dy*dy)||1;
              b.vx+=(dx/d)*0.04; b.vy+=(dy/d)*0.04;
           }
