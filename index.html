@@ -16,7 +16,7 @@
     canvas {
       display: block; width: auto; height: auto;
       max-width: 95vw; max-height: 95vh;
-      aspect-ratio: 80 / 129; /* 400x645 px */
+      aspect-ratio: 80 / 129;
       image-rendering: pixelated;
       touch-action: none; background: #000;
     }
@@ -50,36 +50,243 @@
     #rotate-warning .icon { font-size: 48px; margin-bottom: 15px; animation: spin 2s linear infinite; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(90deg); } }
     .hidden { display: none !important; }
+
+    /* 📻 RADIO 80 Y 90 - POSICIÓN FIJA ARRIBA IZQUIERDA */
+    .radio-container {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 100;
+      gap: 5px;
+      -webkit-tap-highlight-color: transparent;
+      pointer-events: none;
+    }
+    #radio-btn {
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      border: 2px solid white;
+      background: rgba(0,0,0,0.5);
+      cursor: pointer;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+      z-index: 101;
+      pointer-events: auto;
+    }
+    #radio-btn:hover {
+      background: rgba(0,0,0,0.8);
+      transform: scale(1.1);
+      border-color: #ffdd59;
+    }
+    .radio-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+    }
+    .radio-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+    }
+    #radio-btn.loading .radio-overlay {
+      opacity: 1;
+      animation: spin 1s linear infinite;
+    }
+    #radio-btn.playing {
+      border-color: #ff6b6b;
+      animation: pulse-radio 2s infinite;
+    }
+    @keyframes pulse-radio {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.4); }
+      50% { box-shadow: 0 0 0 12px rgba(255, 107, 107, 0); }
+    }
+    .radio-label {
+      font-size: 9px;
+      color: white;
+      text-align: center;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+      white-space: nowrap;
+      font-weight: 500;
+      max-width: 80px;
+      line-height: 1.2;
+      pointer-events: none;
+    }
+
+    /* 🎬 PANTALLA DE INTRO/CARGA */
+    #intro-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.5s ease-out;
+    }
+
+    #intro-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .intro-image {
+      width: 400px;
+      max-width: 90vw;
+      height: auto;
+      object-fit: contain;
+      border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      animation: introImagePulse 2s ease-in-out infinite;
+    }
+
+    @keyframes introImagePulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    .intro-container {
+      position: absolute;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 400px;
+      max-width: 90%;
+      text-align: center;
+    }
+
+    .intro-text {
+      color: #ecf0f1;
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+      font-weight: bold;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+    }
+
+    .intro-bar-container {
+      width: 100%;
+      height: 8px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .intro-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #f1c40f, #f39c12);
+      border-radius: 4px;
+      transition: width 0.1s linear;
+      animation: introBarGlow 1.5s ease-in-out infinite;
+    }
+
+    @keyframes introBarGlow {
+      0%, 100% { box-shadow: 0 0 5px #f1c40f; }
+      50% { box-shadow: 0 0 15px #f1c40f; }
+    }
+
+    .intro-percentage {
+      color: #f1c40f;
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+
+    .intro-dots {
+      display: inline-block;
+      animation: introDots 1.5s infinite;
+    }
+
+    @keyframes introDots {
+      0%, 20% { content: ''; }
+      40% { content: '.'; }
+      60% { content: '..'; }
+      80%, 100% { content: '...'; }
+    }
   </style>
 </head>
 <body>
 
-<canvas id="game" width="400" height="645"></canvas>
+  <!-- 🎬 PANTALLA DE INTRO/CARGA -->
+  <div id="intro-screen">
+    <img src="portada.png" alt="Cargando juego..." class="intro-image" onerror="this.style.display='none'; document.querySelector('.intro-text').textContent='⚠️ Error al cargar portada.png';">
+    <div class="intro-container">
+      <div class="intro-text">Cargando Matamarcianos<span class="intro-dots"></span></div>
+      <div class="intro-bar-container">
+        <div class="intro-bar" id="intro-bar"></div>
+      </div>
+      <div class="intro-percentage" id="intro-percentage">0%</div>
+    </div>
+  </div>
 
-<div id="overlay">
-  <h1>👾 MATAMARCIANOS 👾</h1>
-  <p>Toca para empezar</p>
-</div>
+  <!-- 📻 RADIO 80 Y 90 AUDIO -->
+  <audio id="radio-audio" preload="none" crossorigin="anonymous">
+    <source src="https://stream.zeno.fm/ndhkmuknva0uv" type="audio/mpeg">
+  </audio>
 
-<div id="rotate-warning">
-  <div class="icon">📱</div>
-  <p>Por favor, gira tu dispositivo<br>a modo <strong>VERTICAL</strong></p>
-</div>
+  <canvas id="game" width="400" height="645"></canvas>
 
-<div id="phase-msg"><h2 id="phase-text">¡FASE 2!</h2></div>
+  <div id="overlay">
+    <h1>👾 MATAMARCIANOS 👾</h1>
+    <p>Toca para empezar</p>
+  </div>
 
-<div id="victory-screen">
-  <h1>🏆 ¡VICTORIA! 🏆</h1>
-  <p id="victory-score">Puntuación Final: 0</p>
-  <p id="victory-msg">Has completado las 4 fases</p>
-  <button id="restart-btn">JUGAR DE NUEVO</button>
-</div>
+  <div id="rotate-warning">
+    <div class="icon">📱</div>
+    <p>Por favor, gira tu dispositivo<br>a modo <strong>VERTICAL</strong></p>
+  </div>
 
-<div id="game-over-screen">
-  <h1>💀 GAME OVER 💀</h1>
-  <p id="game-over-score">Puntuación Final: 0</p>
-  <button id="retry-btn">REINTENTAR</button>
-</div>
+  <div id="phase-msg"><h2 id="phase-text">¡FASE 2!</h2></div>
+
+  <div id="victory-screen">
+    <h1>🏆 ¡VICTORIA! 🏆</h1>
+    <p id="victory-score">Puntuación Final: 0</p>
+    <p id="victory-msg">Has completado las 4 fases</p>
+    <button id="restart-btn">JUGAR DE NUEVO</button>
+  </div>
+
+  <div id="game-over-screen">
+    <h1>💀 GAME OVER 💀</h1>
+    <p id="game-over-score">Puntuación Final: 0</p>
+    <button id="retry-btn">REINTENTAR</button>
+  </div>
+
+  <!-- 📻 BOTÓN RADIO (arriba izquierda) -->
+  <div class="radio-container">
+    <button id="radio-btn" title="Escuchar 80 y 90 Radio">
+      <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgqvizWNyyqSmA1V6SOmns4wLWw849mHxRjABDTG0o2iyoHbsDPc9nc0rQW4iW6bfpIQLNn6pOgPlWsygdsuMury7g3ss1yJwDOJY1kHXyQwi53Lp9cyIMduU3NzUVaeme8n6V3_yhhGMEIb5XrCmuBejA6FoE5Uyt9ZmNYAqCxqhFmJf2wA9DpTtz9xg/s640/s80y90.png" 
+           alt="80 y 90 Radio" 
+           class="radio-img"
+           id="radio-img">
+      <div class="radio-overlay" id="radio-overlay">🔄</div>
+    </button>
+    <span class="radio-label">80 y 90<br>Radio</span>
+  </div>
 
 <script>
 window.addEventListener('DOMContentLoaded', () => {
@@ -149,6 +356,101 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // 📻 VARIABLES DE RADIO
+  const radioAudio = document.getElementById('radio-audio');
+  const radioBtn = document.getElementById('radio-btn');
+  let radioEnabled = false;
+  let radioLoading = false;
+
+  // 📻 EVENT LISTENER PARA RADIO
+  radioBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (radioLoading) return;
+    
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    
+    radioEnabled = !radioEnabled;
+    
+    if (radioEnabled) {
+      radioLoading = true;
+      radioBtn.classList.add('loading');
+      radioAudio.pause();
+      radioAudio.currentTime = 0;
+      
+      const playPromise = radioAudio.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          radioLoading = false;
+          radioBtn.classList.remove('loading');
+          radioBtn.classList.add('playing');
+        }).catch(error => {
+          console.error('Error al reproducir radio:', error);
+          radioEnabled = false;
+          radioLoading = false;
+          radioBtn.classList.remove('loading', 'playing');
+        });
+      }
+    } else {
+      radioAudio.pause();
+      radioBtn.classList.remove('playing', 'loading');
+    }
+  });
+
+  // 🎬 VARIABLES DE INTRO
+  let introScreenShown = sessionStorage.getItem('introScreenShown');
+
+  // 🎬 FUNCIÓN: MOSTRAR PANTALLA DE INTRO (solo primera vez)
+  function showIntroScreen() {
+    if (introScreenShown === 'true') {
+      // Ya se mostró en esta sesión, ocultar inmediatamente
+      document.getElementById('intro-screen').classList.add('hidden');
+      return;
+    }
+
+    // Marcar como mostrada
+    sessionStorage.setItem('introScreenShown', 'true');
+
+    // Animación de carga (10 segundos)
+    const introBar = document.getElementById('intro-bar');
+    const introPercentage = document.getElementById('intro-percentage');
+    const introDots = document.querySelector('.intro-dots');
+    let progress = 0;
+    const duration = 10000; // 10 segundos
+    const interval = 50; // Actualizar cada 50ms
+    const increment = 100 / (duration / interval);
+
+    const introInterval = setInterval(() => {
+      progress += increment;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(introInterval);
+        
+        // Ocultar pantalla de intro con fade out
+        setTimeout(() => {
+          document.getElementById('intro-screen').classList.add('hidden');
+        }, 300);
+      }
+
+      introBar.style.width = progress + '%';
+      introPercentage.textContent = Math.round(progress) + '%';
+    }, interval);
+
+    // Animación de puntos
+    let dots = 0;
+    const dotsInterval = setInterval(() => {
+      dots = (dots + 1) % 4;
+      introDots.textContent = '.'.repeat(dots);
+    }, 300);
+
+    // Limpiar intervalo de puntos cuando termine la carga
+    setTimeout(() => {
+      clearInterval(dotsInterval);
+    }, duration);
+  }
+
   let gameRunning = false, score = 0, transitioning = false, gameWon = false;
   let lives = 3, extraLifeThreshold = 5000, isInvincible = false, invincibleTimer = 0;
   const keys = {};
@@ -195,7 +497,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   let currentPhaseIdx = 0, currentBossIdx = 0, enemies = [], waveCount = 0, time = 0, alienShootTimer = 0;
   let bossActive = false;
-  let boss = { x:0, y:0, w:140, h:140, hp:0, maxHp:0, type:'', phase:'enter', pattern:'', state:'idle', dirX:1, sweep:0, angle:0, shootTimer:0, spiralAngle:0, fanAngle:0, cycleTimer:0, cycleIdx:0, rngTimer:0, rngPattern:'oscillator', wallGap: 7 };
+  let boss = { x:0, y:0, w:140, h:140, hp:0, maxHp:0, type:'', phase:'enter', pattern:'', state:'idle', dirX:1, sweep:0, angle:0, shootTimer:0, spiralAngle:0, fanAngle:0, cycleTimer:0, cycleIdx:0, rngTimer:0, rngPattern:'oscillator', wallGap: 7, _drawX: 0, _drawY: 0 };
 
   function showPhaseTransition(txt) {
     setTimeout(() => {
@@ -251,18 +553,21 @@ window.addEventListener('DOMContentLoaded', () => {
     const c = PHASES[currentPhaseIdx].bosses[currentBossIdx];
     enemies=[];
     boss.type=c.type; boss.maxHp=c.hp; boss.hp=c.hp;
-    boss.x=W/2-70; boss.y=-150; boss.phase='enter';
+    boss.x=W/2-70; boss.y=-200; boss._drawX=boss.x; boss._drawY=boss.y; boss.phase='enter';
     boss.pattern = c.pattern || 'oscillator';
     boss.state='idle'; boss.dirX=1; boss.sweep=0; boss.shootTimer=0; boss.angle=0; boss.spiralAngle=0; boss.fanAngle=0;
     boss.cycleTimer=0; boss.cycleIdx=0; boss.rngTimer=0; boss.rngPattern='oscillator';
     boss.wallGap = 7;
-    bossActive=true; transitioning=true; setTimeout(()=>transitioning=false, 800); playSound('bossAppear');
+    bossActive=true;
+    transitioning=true;
+    setTimeout(()=>transitioning=false, 200);
+    playSound('bossAppear');
   }
 
   function resetGame() {
     score=0; lives=3; extraLifeThreshold=5000; currentPhaseIdx=0; currentBossIdx=0; bossActive=false; transitioning=false; gameWon=false; isInvincible=false;
     waveCount=0; enemies=[]; pBullets.length=0; aBullets.length=0; particles.length=0;
-    boss={x:0,y:0,w:140,h:140,hp:0,maxHp:0,type:'',phase:'enter',pattern:'oscillator',state:'idle',dirX:1,sweep:0,angle:0,shootTimer:0,spiralAngle:0,fanAngle:0,cycleTimer:0,cycleIdx:0,rngTimer:0,rngPattern:'oscillator',wallGap:7};
+    boss={x:0,y:0,w:140,h:140,hp:0,maxHp:0,type:'',phase:'enter',pattern:'oscillator',state:'idle',dirX:1,sweep:0,angle:0,shootTimer:0,spiralAngle:0,fanAngle:0,cycleTimer:0,cycleIdx:0,rngTimer:0,rngPattern:'oscillator',wallGap:7, _drawX:0, _drawY:0};
     player.x=W/2-32; player.y=H-95;
     document.getElementById('victory-screen').style.display='none'; document.getElementById('game-over-screen').style.display='none';
     spawnWave(); gameRunning=true; loop();
@@ -320,18 +625,27 @@ window.addEventListener('DOMContentLoaded', () => {
       }
       if(active===0&&!transitioning) spawnWave();
     } else {
-      if(boss.phase==='enter'){boss.y+=3; if(boss.y>=50){boss.phase='fight';}}
+      if(boss.phase==='enter'){
+        boss.y+=8;
+        boss._drawX = boss.x + (Math.random()-0.5)*4;
+        boss._drawY = boss.y + (Math.random()-0.5)*2;
+        if(boss.y>=50){
+          boss.phase='fight';
+          boss._drawX = boss.x;
+          boss._drawY = boss.y;
+        }
+      }
       else if(boss.phase==='fight'){
         let isEnraged = boss.pattern==='frenetic' && boss.hp < boss.maxHp*0.2;
         let speedM = isEnraged ? 1.5 : 1;
 
         switch(boss.pattern) {
-          case 'oscillator': // Koala
+          case 'oscillator':
             boss.angle += 0.03*speedM;
             boss.x = W/2-70+Math.sin(boss.angle)*85;
             if(boss.shootTimer>=25){for(let o of[-1.5,-0.5,0.5,1.5])aBullets.push({x:boss.x+boss.w/2-2+o*12,y:boss.y+boss.h,w:5,h:12,s:4});boss.shootTimer=0;}
             break;
-          case 'charge': // Enrique
+          case 'charge':
             if(boss.state==='idle'){
               boss.x = W/2 - 70 + Math.sin(time * 1.8) * 110;
               if(boss.shootTimer > 60){ boss.state='charge'; boss.timer=0; }
@@ -347,7 +661,7 @@ window.addEventListener('DOMContentLoaded', () => {
               if(boss.y <= 60){ boss.y = 60; boss.state='idle'; boss.shootTimer=0; }
             }
             break;
-          case 'sweep': // Kiko
+          case 'sweep':
             boss.dirX = boss.dirX || 1;
             boss.x += boss.dirX * 2.5 * speedM;
             if(boss.x <= 0 || boss.x + boss.w >= W - 20) boss.dirX *= -1;
@@ -356,15 +670,15 @@ window.addEventListener('DOMContentLoaded', () => {
               boss.shootTimer = 0;
             }
             break;
-          case 'circle': // Carlitos
+          case 'circle':
             boss.x+=(Math.random()-0.5)*2.5*speedM; boss.y+=(Math.random()-0.5)*1.2*speedM;
             if(boss.shootTimer>=60){for(let i=0;i<12;i++){let a=(Math.PI*2/12)*i;aBullets.push({x:boss.x+boss.w/2+Math.cos(a)*10,y:boss.y+boss.h/2+Math.sin(a)*10,w:4,h:12,s:3.5,vx:Math.cos(a)*3.5,vy:Math.sin(a)*3.5});}boss.shootTimer=0;}
             break;
-          case 'rain': // Pepino
+          case 'rain':
             boss.x=200+Math.sin(time*2)*110; boss.y=60;
             if(boss.shootTimer>=8){aBullets.push({x:boss.x+boss.w/2-2,y:boss.y+boss.h,w:4,h:12,s:1.8,vy:1.8,accel:0.06});boss.shootTimer=0;}
             break;
-          case 'curve': // Perickko
+          case 'curve':
             boss.x += Math.sin(time)*1.8*speedM; boss.y = 140 + Math.cos(time*0.5)*35;
             if(boss.shootTimer >= 65) {
               for(let i=-1; i<=1; i++){
@@ -376,25 +690,25 @@ window.addEventListener('DOMContentLoaded', () => {
               boss.shootTimer = 0;
             }
             break;
-          case 'spiral8': // Manoli
+          case 'spiral8':
             boss.x=200+120*Math.sin(time*1.5)-35; boss.y=200+90*Math.sin(time*0.9);
             boss.spiralAngle+=0.22*speedM;
             if(boss.shootTimer>=5){aBullets.push({x:boss.x+boss.w/2,y:boss.y+boss.h,w:4,h:12,s:3.6,vx:Math.cos(boss.spiralAngle)*3.6,vy:Math.sin(boss.spiralAngle)*3.6});boss.shootTimer=0;}
             break;
-          case 'wall': // Nandors ✅ PASILLO ANCHO
+          case 'wall':
             boss.x = W/2 - 70 + Math.sin(time * 1.2) * 35;
             boss.y = 110 + Math.cos(time * 0.8) * 25;
             if(boss.shootTimer >= 75) {
               boss.wallGap += Math.random() > 0.6 ? (Math.random() > 0.5 ? 1 : -1) : 0;
               boss.wallGap = Math.max(2, Math.min(11, boss.wallGap));
               for(let i = 0; i < 14; i++) {
-                if(i >= boss.wallGap - 2 && i <= boss.wallGap + 2) continue; // Hueco de 5 balas (~100px)
+                if(i >= boss.wallGap - 2 && i <= boss.wallGap + 2) continue;
                 aBullets.push({x: boss.x - 126 + i*20, y: boss.y + boss.h, w:4, h:12, s:2.0});
               }
               boss.shootTimer = 0;
             }
             break;
-          case 'dualfan': // Valefor ✅ EQUILIBRADO
+          case 'dualfan':
             boss.x = W/2 - 70 + Math.sin(time * 2.5) * 85;
             boss.y = 150 + Math.cos(time * 0.7) * 25;
             if(boss.shootTimer >= 22) { 
@@ -407,51 +721,63 @@ window.addEventListener('DOMContentLoaded', () => {
               boss.shootTimer = 0;
             }
             break;
-          case 'phases': // Paola ✅ FASES DINÁMICAS
+          case 'phases':
             let hpRatio = boss.hp / boss.maxHp;
-            if(hpRatio > 0.66) { // 🟢 FASE 1: Espiral
-              boss.x = 200 + 120*Math.sin(time*1.5) - 35;
-              boss.y = 200 + 90*Math.sin(time*0.9);
+            if(hpRatio > 0.66) {
+              boss.x = 200 + 120*Math.sin(time*1.5) - 35; boss.y = 200 + 90*Math.sin(time*0.9);
               boss.spiralAngle += 0.22;
-              if(boss.shootTimer >= 5){
-                aBullets.push({x:boss.x+boss.w/2,y:boss.y+boss.h,w:4,h:12,s:3.6,vx:Math.cos(boss.spiralAngle)*3.6,vy:Math.sin(boss.spiralAngle)*3.6});
-                boss.shootTimer = 0;
-              }
-            } else if(hpRatio > 0.33) { // 🟡 FASE 2: Curvas
+              if(boss.shootTimer >= 5){ aBullets.push({x:boss.x+boss.w/2,y:boss.y+boss.h,w:4,h:12,s:3.6,vx:Math.cos(boss.spiralAngle)*3.6,vy:Math.sin(boss.spiralAngle)*3.6}); boss.shootTimer = 0; }
+            } else if(hpRatio > 0.33) {
               boss.x += Math.sin(time)*1.8*speedM; boss.y = 140 + Math.cos(time*0.5)*35;
               if(boss.shootTimer >= 65) {
                 for(let i=-1; i<=1; i++){
-                  let dx = (player.x+player.w/2) - (boss.x+boss.w/2) + i*40;
-                  let dy = (player.y+player.h/2) - (boss.y+boss.h);
-                  let d = Math.sqrt(dx*dx+dy*dy) || 1;
+                  let dx = (player.x+player.w/2) - (boss.x+boss.w/2) + i*40, dy = (player.y+player.h/2) - (boss.y+boss.h), d = Math.sqrt(dx*dx+dy*dy) || 1;
                   aBullets.push({x:boss.x+boss.w/2-2+i*8,y:boss.y+boss.h,w:4,h:12,s:3.5,vx:(dx/d)*3.5,vy:(dy/d)*3.5,curve:true,age:0});
                 }
                 boss.shootTimer = 0;
               }
-            } else { // 🔴 FASE 3: Círculo explosivo
+            } else {
               boss.x+=(Math.random()-0.5)*2.5*speedM; boss.y+=(Math.random()-0.5)*1.2*speedM;
               if(boss.shootTimer>=60){
-                for(let i=0;i<12;i++){
-                  let a=(Math.PI*2/12)*i;
-                  aBullets.push({x:boss.x+boss.w/2+Math.cos(a)*10,y:boss.y+boss.h/2+Math.sin(a)*10,w:4,h:12,s:3.5,vx:Math.cos(a)*3.5,vy:Math.sin(a)*3.5});
-                }
+                for(let i=0;i<12;i++){let a=(Math.PI*2/12)*i;aBullets.push({x:boss.x+boss.w/2+Math.cos(a)*10,y:boss.y+boss.h/2+Math.sin(a)*10,w:4,h:12,s:3.5,vx:Math.cos(a)*3.5,vy:Math.sin(a)*3.5});}
                 boss.shootTimer = 0;
               }
             }
             break;
-          case 'whirlwind': // Spike-Mike
-            boss.cycleTimer++; if(boss.cycleTimer>45){boss.cycleTimer=0;boss.cycleIdx=(boss.cycleIdx+1)%3;}
-            boss.pattern = boss.cycleIdx===0?'spiral8':boss.cycleIdx===1?'rain':'dualfan';
+          case 'whirlwind': {
+            boss.cycleTimer++;
+            if(boss.cycleTimer > 45) { boss.cycleTimer = 0; boss.cycleIdx = (boss.cycleIdx + 1) % 3; }
+            let smPattern = boss.cycleIdx === 0 ? 'spiral8' : boss.cycleIdx === 1 ? 'rain' : 'dualfan';
+            let smX = boss.x, smY = boss.y;
+            if(smPattern === 'spiral8') { smX = 200 + 110*Math.sin(time*1.5) - 35; smY = 180 + 80*Math.sin(time*0.9); boss.spiralAngle += 0.22; if(boss.shootTimer >= 5) { aBullets.push({x:boss.x+boss.w/2,y:boss.y+boss.h,w:4,h:12,s:3.6,vx:Math.cos(boss.spiralAngle)*3.6,vy:Math.sin(boss.spiralAngle)*3.6}); boss.shootTimer=0; } }
+            else if(smPattern === 'rain') { smX = 200 + Math.sin(time*2)*100; smY = 60; if(boss.shootTimer >= 8) { aBullets.push({x:boss.x+boss.w/2-2,y:boss.y+boss.h,w:4,h:12,s:1.8,vy:1.8,accel:0.06}); boss.shootTimer=0; } }
+            else { smX = W/2 - 70 + Math.sin(time*2.5)*85; smY = 140 + Math.cos(time*0.7)*20; if(boss.shootTimer >= 22) { boss.fanAngle = (boss.fanAngle||0)+0.20; for(let o=0;o<3;o++){let a1=boss.fanAngle+o*0.55,a2=-boss.fanAngle+o*0.55;aBullets.push({x:boss.x+boss.w/2,y:boss.y+boss.h,w:4,h:12,s:3.0,vx:Math.cos(a1)*3.0,vy:Math.sin(a1)*3.0});aBullets.push({x:boss.x+boss.w/2,y:boss.y+boss.h,w:4,h:12,s:3.0,vx:Math.cos(a2)*3.0,vy:Math.sin(a2)*3.0});} boss.shootTimer=0; } }
+            boss.x += (smX - boss.x) * 0.08; boss.y += (smY - boss.y) * 0.08;
             break;
-          case 'frenetic': // Cebollo
-            boss.rngTimer++; if(boss.rngTimer>25){boss.rngTimer=0;boss.rngPattern=['oscillator','charge','spiral8','dualfan'][Math.floor(Math.random()*4)];}
-            boss.pattern=boss.rngPattern;
-            if(isEnraged){boss.x+=(Math.random()-0.5)*7;boss.y+=Math.random()*4;}
+          }
+          case 'frenetic': {
+            boss.rngTimer++;
+            if(boss.rngTimer > 40) {
+              boss.rngTimer = 0;
+              boss.rngPattern = ['oscillator','spiral8','dualfan','charge'][Math.floor(Math.random()*4)];
+              if(boss.rngPattern === 'charge') { boss.state = 'idle'; boss.timer = 0; }
+              if(boss.rngPattern === 'dualfan') boss.fanAngle = 0;
+            }
+            let tX = boss.x, tY = boss.y, sp = isEnraged ? 1.3 : 1.0;
+            if(boss.rngPattern === 'oscillator') { tX = W/2-70+Math.sin(time*2.5)*110; tY = 150+Math.cos(time*2)*40; if(boss.shootTimer>=25){for(let o=-2;o<=2;o++)aBullets.push({x:boss.x+boss.w/2,y:boss.y+boss.h,w:4,h:12,s:3.5,vx:o*1.5,vy:3.5});boss.shootTimer=0;} }
+            else if(boss.rngPattern === 'spiral8') { tX = 200+100*Math.sin(time*2)-35; tY = 180+70*Math.sin(time*1.5); boss.spiralAngle+=0.25*sp; if(boss.shootTimer>=6){aBullets.push({x:boss.x+boss.w/2,y:boss.y+boss.h,w:4,h:12,s:4,vx:Math.cos(boss.spiralAngle)*4,vy:Math.sin(boss.spiralAngle)*4});boss.shootTimer=0;} }
+            else if(boss.rngPattern === 'dualfan') { tX = W/2-70+Math.sin(time*2.5)*90; tY = 140+Math.cos(time)*30; if(boss.shootTimer>=20){boss.fanAngle=(boss.fanAngle||0)+0.4;for(let o=-1;o<=1;o++){let a1=boss.fanAngle+o*0.6,a2=-boss.fanAngle+o*0.6;aBullets.push({x:boss.x+boss.w/2,y:boss.y+boss.h,w:4,h:12,s:3.5,vx:Math.cos(a1)*3.5,vy:Math.sin(a1)*3.5});aBullets.push({x:boss.x+boss.w/2,y:boss.y+boss.h,w:4,h:12,s:3.5,vx:Math.cos(a2)*3.5,vy:Math.sin(a2)*3.5});}boss.shootTimer=0;} }
+            else if(boss.rngPattern === 'charge') { if(boss.state==='idle'){tX=W/2-70+Math.sin(time*3)*100;tY=100+Math.cos(time*2)*30;if(boss.timer++>40){boss.state='charge';boss.timer=0;}}else if(boss.state==='charge'){tY=H-150;tX+=(player.x-boss.x>0?1:-1)*4*sp;if(boss.shootTimer>=8){aBullets.push({x:boss.x+boss.w/2-2,y:boss.y+boss.h,w:4,h:12,s:4});boss.shootTimer=0;}if(boss.timer++>30){boss.state='idle';boss.timer=0;boss.shootTimer=0;}} }
+            boss.x += (tX - boss.x) * 0.08; boss.y += (tY - boss.y) * 0.08;
+            let shX = isEnraged ? (Math.random()-0.5)*4 : 0, shY = isEnraged ? (Math.random()-0.5)*4 : 0;
+            boss._drawX = boss.x + shX; boss._drawY = boss.y + shY;
             break;
+          }
         }
         boss.shootTimer++;
         boss.x = Math.max(-30, Math.min(W-30, boss.x));
         boss.y = Math.max(30, Math.min(H-200, boss.y));
+        if(boss.pattern !== 'frenetic') { boss._drawX = boss.x; boss._drawY = boss.y; }
       }
     }
 
@@ -496,7 +822,17 @@ window.addEventListener('DOMContentLoaded', () => {
     for(let i=0;i<lives;i++){if(imgs.player.complete&&imgs.player.naturalWidth>0)ctx.drawImage(imgs.player,10+i*(lifeSize+padding),startY,lifeSize,lifeSize);else{ctx.fillStyle='#0af';ctx.fillRect(10+i*(lifeSize+padding),startY,lifeSize,lifeSize);}}
 
     if(!bossActive){for(let e of enemies){if(!e.alive)continue;let img=imgs[e.type];if(img&&img.complete&&img.naturalWidth>0)ctx.drawImage(img,e.x,e.y,e.w,e.h);else{ctx.fillStyle=fallbackColors[e.type];if(e.behavior==='normal'&&e.isDiving&&e.colorShift)ctx.fillStyle='#ff0000';ctx.fillRect(e.x,e.y,e.w,e.h);}}}
-    if(bossActive){let img=imgs[boss.type];if(img&&img.complete&&img.naturalWidth>0)ctx.drawImage(img,boss.x,boss.y,boss.w,boss.h);else{ctx.fillStyle=fallbackColors[boss.type];ctx.fillRect(boss.x,boss.y,boss.w,boss.h);}ctx.fillStyle='#333';ctx.fillRect(boss.x+10,boss.y+boss.h+10,boss.w-20,10);ctx.fillStyle=boss.hp>boss.maxHp*0.3?'#0f0':'#f00';ctx.fillRect(boss.x+10,boss.y+boss.h+10,Math.max(0,(boss.hp/boss.maxHp)*(boss.w-20)),10);ctx.fillStyle='#fff';ctx.font='bold 12px monospace';ctx.textAlign='center';ctx.fillText(`JEFE: ${boss.type.toUpperCase()}`,W/2,boss.y+boss.h+35);ctx.textAlign='start';}
+    if(bossActive){
+      let img=imgs[boss.type];
+      if(img&&img.complete&&img.naturalWidth>0) ctx.drawImage(img, boss._drawX, boss._drawY, boss.w, boss.h);
+      else { ctx.fillStyle=fallbackColors[boss.type]; ctx.fillRect(boss._drawX, boss._drawY, boss.w, boss.h); }
+      
+      ctx.fillStyle = '#333'; ctx.fillRect(boss._drawX+10, boss._drawY+boss.h+10, boss.w-20, 10);
+      ctx.fillStyle = boss.hp > boss.maxHp*0.3 ? '#0f0' : '#f00';
+      ctx.fillRect(boss._drawX+10, boss._drawY+boss.h+10, Math.max(0, (boss.hp/boss.maxHp)*(boss.w-20)), 10);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(`JEFE: ${boss.type.toUpperCase()}`, W/2, boss._drawY+boss.h+35); ctx.textAlign = 'start';
+    }
 
     ctx.fillStyle='#ff0';for(let b of pBullets)ctx.fillRect(b.x,b.y,b.w,b.h);ctx.fillStyle='#f00';for(let b of aBullets)ctx.fillRect(b.x,b.y,b.w,b.h);
     for(let p of particles){ctx.fillStyle=p.col;ctx.globalAlpha=p.life/40;ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
@@ -505,6 +841,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   function loop(){if(!gameRunning)return;update();draw();requestAnimationFrame(loop);}
   document.getElementById('overlay').addEventListener('click',()=>{initAudio();gameRunning=true;document.getElementById('overlay').classList.add('hidden');loop();});
+
+  // 🎬 INICIAR PANTALLA DE INTRO AL CARGAR LA PÁGINA
+  showIntroScreen();
 });
 </script>
 </body>
