@@ -384,51 +384,60 @@ window.addEventListener('DOMContentLoaded', () => {
           case 'wall': // Nandors ✅ PASILLO ANCHO
             boss.x = W/2 - 70 + Math.sin(time * 1.2) * 35;
             boss.y = 110 + Math.cos(time * 0.8) * 25;
-            
             if(boss.shootTimer >= 75) {
               boss.wallGap += Math.random() > 0.6 ? (Math.random() > 0.5 ? 1 : -1) : 0;
               boss.wallGap = Math.max(2, Math.min(11, boss.wallGap));
-              
-              // Pasillo de 5 balas de ancho (~100px)
               for(let i = 0; i < 14; i++) {
-                if(i >= boss.wallGap - 2 && i <= boss.wallGap + 2) continue; 
+                if(i >= boss.wallGap - 2 && i <= boss.wallGap + 2) continue; // Hueco de 5 balas (~100px)
                 aBullets.push({x: boss.x - 126 + i*20, y: boss.y + boss.h, w:4, h:12, s:2.0});
               }
               boss.shootTimer = 0;
             }
             break;
           case 'dualfan': // Valefor ✅ EQUILIBRADO
-            // Movimiento suave y predecible
             boss.x = W/2 - 70 + Math.sin(time * 2.5) * 85;
             boss.y = 150 + Math.cos(time * 0.7) * 25;
-
-            // Intervalo de disparo mayor y menos balas
             if(boss.shootTimer >= 22) { 
-              boss.fanAngle = (boss.fanAngle || 0) + 0.20; // Rotación más lenta
-              
-              // 3 balas por abanico
+              boss.fanAngle = (boss.fanAngle || 0) + 0.20;
               for(let o=0; o<3; o++){
-                let a1 = boss.fanAngle + o*0.55; 
-                let a2 = -boss.fanAngle + o*0.55;
-                
-                // Abanico 1
-                aBullets.push({
-                  x: boss.x + boss.w/2, y: boss.y + boss.h,
-                  w: 4, h: 12, s: 3.0,
-                  vx: Math.cos(a1)*3.0, vy: Math.sin(a1)*3.0
-                });
-                // Abanico 2
-                aBullets.push({
-                  x: boss.x + boss.w/2, y: boss.y + boss.h,
-                  w: 4, h: 12, s: 3.0,
-                  vx: Math.cos(a2)*3.0, vy: Math.sin(a2)*3.0
-                });
+                let a1 = boss.fanAngle + o*0.55, a2 = -boss.fanAngle + o*0.55;
+                aBullets.push({x:boss.x+boss.w/2,y:boss.y+boss.h,w:4,h:12,s:3.0,vx:Math.cos(a1)*3.0,vy:Math.sin(a1)*3.0});
+                aBullets.push({x:boss.x+boss.w/2,y:boss.y+boss.h,w:4,h:12,s:3.0,vx:Math.cos(a2)*3.0,vy:Math.sin(a2)*3.0});
               }
               boss.shootTimer = 0;
             }
             break;
-          case 'phases': // Paola
-            let hp=boss.hp/boss.maxHp; boss.pattern = hp>0.66?'spiral8':hp>0.33?'curve':'circle';
+          case 'phases': // Paola ✅ FASES DINÁMICAS
+            let hpRatio = boss.hp / boss.maxHp;
+            if(hpRatio > 0.66) { // 🟢 FASE 1: Espiral
+              boss.x = 200 + 120*Math.sin(time*1.5) - 35;
+              boss.y = 200 + 90*Math.sin(time*0.9);
+              boss.spiralAngle += 0.22;
+              if(boss.shootTimer >= 5){
+                aBullets.push({x:boss.x+boss.w/2,y:boss.y+boss.h,w:4,h:12,s:3.6,vx:Math.cos(boss.spiralAngle)*3.6,vy:Math.sin(boss.spiralAngle)*3.6});
+                boss.shootTimer = 0;
+              }
+            } else if(hpRatio > 0.33) { // 🟡 FASE 2: Curvas
+              boss.x += Math.sin(time)*1.8*speedM; boss.y = 140 + Math.cos(time*0.5)*35;
+              if(boss.shootTimer >= 65) {
+                for(let i=-1; i<=1; i++){
+                  let dx = (player.x+player.w/2) - (boss.x+boss.w/2) + i*40;
+                  let dy = (player.y+player.h/2) - (boss.y+boss.h);
+                  let d = Math.sqrt(dx*dx+dy*dy) || 1;
+                  aBullets.push({x:boss.x+boss.w/2-2+i*8,y:boss.y+boss.h,w:4,h:12,s:3.5,vx:(dx/d)*3.5,vy:(dy/d)*3.5,curve:true,age:0});
+                }
+                boss.shootTimer = 0;
+              }
+            } else { // 🔴 FASE 3: Círculo explosivo
+              boss.x+=(Math.random()-0.5)*2.5*speedM; boss.y+=(Math.random()-0.5)*1.2*speedM;
+              if(boss.shootTimer>=60){
+                for(let i=0;i<12;i++){
+                  let a=(Math.PI*2/12)*i;
+                  aBullets.push({x:boss.x+boss.w/2+Math.cos(a)*10,y:boss.y+boss.h/2+Math.sin(a)*10,w:4,h:12,s:3.5,vx:Math.cos(a)*3.5,vy:Math.sin(a)*3.5});
+                }
+                boss.shootTimer = 0;
+              }
+            }
             break;
           case 'whirlwind': // Spike-Mike
             boss.cycleTimer++; if(boss.cycleTimer>45){boss.cycleTimer=0;boss.cycleIdx=(boss.cycleIdx+1)%3;}
