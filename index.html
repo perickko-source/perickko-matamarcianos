@@ -228,6 +228,48 @@
       60% { content: '..'; }
       80%, 100% { content: '...'; }
     }
+
+    /* ⚡ POWER-UP INDICATORS */
+    #powerup-indicators {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .powerup-indicator {
+      background: rgba(0,0,0,0.7);
+      border: 2px solid;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-family: monospace;
+      font-size: 14px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+      animation: powerupPulse 0.5s ease-in-out infinite;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .powerup-indicator.shield { border-color: #00ff00; background: rgba(0,255,0,0.2); }
+    .powerup-indicator.triple { border-color: #ff0000; background: rgba(255,0,0,0.2); }
+    .powerup-indicator.drone { border-color: #00ffff; background: rgba(0,255,255,0.2); }
+
+    @keyframes powerupPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .powerup-timer {
+      font-size: 12px;
+      opacity: 0.8;
+    }
   </style>
 </head>
 <body>
@@ -250,6 +292,9 @@
   </audio>
 
   <canvas id="game" width="400" height="645"></canvas>
+
+  <!-- ⚡ POWER-UP INDICATORS -->
+  <div id="powerup-indicators"></div>
 
   <div id="overlay">
     <h1>👾 MATAMARCIANOS 👾</h1>
@@ -353,6 +398,26 @@ window.addEventListener('DOMContentLoaded', () => {
         const s = t + i * 0.1; o.type = 'sine'; o.frequency.setValueAtTime(f, s);
         g.gain.setValueAtTime(0.1, s); g.gain.exponentialRampToValueAtTime(0.01, s + 0.08); o.start(s); o.stop(s + 0.08);
       });
+    } else if (type === 'powerupShield') {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'sine'; o.frequency.setValueAtTime(600, t); o.frequency.linearRampToValueAtTime(1000, t + 0.3);
+      g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.3); o.start(t); o.stop(t + 0.3);
+    } else if (type === 'powerupTriple') {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'square'; o.frequency.setValueAtTime(700, t); o.frequency.linearRampToValueAtTime(1200, t + 0.3);
+      g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.3); o.start(t); o.stop(t + 0.3);
+    } else if (type === 'powerupDrone') {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'sine'; o.frequency.setValueAtTime(800, t); o.frequency.linearRampToValueAtTime(1400, t + 0.4);
+      g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.4); o.start(t); o.stop(t + 0.4);
+    } else if (type === 'droneShoot') {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'square'; o.frequency.setValueAtTime(500, t); o.frequency.exponentialRampToValueAtTime(300, t + 0.15);
+      g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.15); o.start(t); o.stop(t + 0.15);
+    } else if (type === 'shieldHit') {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(400, t); o.frequency.exponentialRampToValueAtTime(200, t + 0.2);
+      g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.2); o.start(t); o.stop(t + 0.2);
     }
   }
 
@@ -405,21 +470,18 @@ window.addEventListener('DOMContentLoaded', () => {
   // 🎬 FUNCIÓN: MOSTRAR PANTALLA DE INTRO (solo primera vez)
   function showIntroScreen() {
     if (introScreenShown === 'true') {
-      // Ya se mostró en esta sesión, ocultar inmediatamente
       document.getElementById('intro-screen').classList.add('hidden');
       return;
     }
 
-    // Marcar como mostrada
     sessionStorage.setItem('introScreenShown', 'true');
 
-    // Animación de carga (10 segundos)
     const introBar = document.getElementById('intro-bar');
     const introPercentage = document.getElementById('intro-percentage');
     const introDots = document.querySelector('.intro-dots');
     let progress = 0;
-    const duration = 10000; // 10 segundos
-    const interval = 50; // Actualizar cada 50ms
+    const duration = 10000;
+    const interval = 50;
     const increment = 100 / (duration / interval);
 
     const introInterval = setInterval(() => {
@@ -427,8 +489,6 @@ window.addEventListener('DOMContentLoaded', () => {
       if (progress >= 100) {
         progress = 100;
         clearInterval(introInterval);
-        
-        // Ocultar pantalla de intro con fade out
         setTimeout(() => {
           document.getElementById('intro-screen').classList.add('hidden');
         }, 300);
@@ -438,17 +498,149 @@ window.addEventListener('DOMContentLoaded', () => {
       introPercentage.textContent = Math.round(progress) + '%';
     }, interval);
 
-    // Animación de puntos
     let dots = 0;
     const dotsInterval = setInterval(() => {
       dots = (dots + 1) % 4;
       introDots.textContent = '.'.repeat(dots);
     }, 300);
 
-    // Limpiar intervalo de puntos cuando termine la carga
     setTimeout(() => {
       clearInterval(dotsInterval);
     }, duration);
+  }
+
+  // ⚡ VARIABLES DE POWER-UPS
+  let shieldActive = false;
+  let shieldHits = 4;
+  let shieldMaxHits = 4;
+  let tripleShotActive = false;
+  let tripleShotTimer = 0;
+  let droneActive = false;
+  let droneTimer = 0;
+  let drones = [];
+
+  // ⚡ FUNCIONES DE POWER-UPS
+  function activateShield() {
+    shieldActive = true;
+    shieldHits = shieldMaxHits;
+    playSound('powerupShield');
+    updatePowerupIndicators();
+  }
+
+  function activateTripleShot() {
+    tripleShotActive = true;
+    tripleShotTimer = 480; // 8 segundos a 60fps
+    playSound('powerupTriple');
+    updatePowerupIndicators();
+  }
+
+  function activateDrone() {
+    droneActive = true;
+    droneTimer = 480; // 8 segundos a 60fps
+    drones = [
+      { x: player.x - 40, y: player.y + 20, shootTimer: 0 },
+      { x: player.x + player.w, y: player.y + 20, shootTimer: 0 }
+    ];
+    playSound('powerupDrone');
+    updatePowerupIndicators();
+  }
+
+  function updatePowerupIndicators() {
+    const container = document.getElementById('powerup-indicators');
+    container.innerHTML = '';
+
+    if (shieldActive) {
+      const div = document.createElement('div');
+      div.className = 'powerup-indicator shield';
+      div.innerHTML = `<span>🛡️</span><span>ESCUDO</span><span class="powerup-timer">${shieldHits}/${shieldMaxHits}</span>`;
+      container.appendChild(div);
+    }
+
+    if (tripleShotActive) {
+      const div = document.createElement('div');
+      div.className = 'powerup-indicator triple';
+      div.innerHTML = `<span>⚡</span><span>TRIPLE</span><span class="powerup-timer">${(tripleShotTimer/60).toFixed(1)}s</span>`;
+      container.appendChild(div);
+    }
+
+    if (droneActive) {
+      const div = document.createElement('div');
+      div.className = 'powerup-indicator drone';
+      div.innerHTML = `<span>🤖</span><span>DRONES</span><span class="powerup-timer">${(droneTimer/60).toFixed(1)}s</span>`;
+      container.appendChild(div);
+    }
+  }
+
+  function updatePowerups() {
+    // Actualizar Triple Shot
+    if (tripleShotActive) {
+      tripleShotTimer--;
+      if (tripleShotTimer <= 0) {
+        tripleShotActive = false;
+      }
+      updatePowerupIndicators();
+    }
+
+    // Actualizar Drones
+    if (droneActive) {
+      droneTimer--;
+      if (droneTimer <= 0) {
+        droneActive = false;
+        drones = [];
+      } else {
+        // Actualizar posición de drones
+        drones[0].x = player.x - 40;
+        drones[0].y = player.y + 20;
+        drones[1].x = player.x + player.w;
+        drones[1].y = player.y + 20;
+
+        // Drones disparan automáticamente
+        drones.forEach((drone, i) => {
+          drone.shootTimer++;
+          if (drone.shootTimer >= 20) {
+            drone.shootTimer = 0;
+            pBullets.push({
+              x: drone.x + 2,
+              y: drone.y,
+              w: 4,
+              h: 12,
+              s: 7,
+              isDrone: true
+            });
+            playSound('droneShoot');
+          }
+        });
+      }
+      updatePowerupIndicators();
+    }
+  }
+
+  function checkPowerupActivation() {
+    const phase = PHASES[currentPhaseIdx];
+    const boss = phase.bosses[currentBossIdx];
+
+    if (!boss) return;
+
+    // 🛡️ SHIELD: Antes de Manoli (Fase 3, Boss 1) - score 26000
+    if (currentPhaseIdx === 2 && currentBossIdx === 0 && score >= 25500 && !shieldActive && !bossActive) {
+      activateShield();
+    }
+
+    // ⚡ TRIPLE SHOT: Durante Nandors (Fase 3, Boss 2) - score 30000
+    if (currentPhaseIdx === 2 && currentBossIdx === 1 && score >= 30000 && score < 30500 && !tripleShotActive && bossActive) {
+      activateTripleShot();
+    }
+
+    // 🤖 DRONE: Antes de Valefor (Fase 3, Boss 3) - score 33500
+    if (currentPhaseIdx === 2 && currentBossIdx === 2 && score >= 33500 && !droneActive && !bossActive) {
+      activateDrone();
+    }
+
+    // ⚡ TRIPLE SHOT + 🤖 DRONE: Durante Cebollo (Fase 4, Boss 3) - score 48000
+    if (currentPhaseIdx === 3 && currentBossIdx === 2 && score >= 48000 && score < 48500 && bossActive) {
+      if (!tripleShotActive) activateTripleShot();
+      if (!droneActive) activateDrone();
+    }
   }
 
   let gameRunning = false, score = 0, transitioning = false, gameWon = false;
@@ -566,10 +758,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
   function resetGame() {
     score=0; lives=3; extraLifeThreshold=5000; currentPhaseIdx=0; currentBossIdx=0; bossActive=false; transitioning=false; gameWon=false; isInvincible=false;
+    shieldActive=false; shieldHits=4; tripleShotActive=false; tripleShotTimer=0; droneActive=false; droneTimer=0; drones=[];
     waveCount=0; enemies=[]; pBullets.length=0; aBullets.length=0; particles.length=0;
     boss={x:0,y:0,w:140,h:140,hp:0,maxHp:0,type:'',phase:'enter',pattern:'oscillator',state:'idle',dirX:1,sweep:0,angle:0,shootTimer:0,spiralAngle:0,fanAngle:0,cycleTimer:0,cycleIdx:0,rngTimer:0,rngPattern:'oscillator',wallGap:7, _drawX:0, _drawY:0};
     player.x=W/2-32; player.y=H-95;
     document.getElementById('victory-screen').style.display='none'; document.getElementById('game-over-screen').style.display='none';
+    document.getElementById('powerup-indicators').innerHTML = '';
     spawnWave(); gameRunning=true; loop();
   }
 
@@ -577,7 +771,21 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('retry-btn').addEventListener('click', ()=>{initAudio();resetGame();});
 
   function playerHit() {
-    if(isInvincible) return; lives--; isInvincible=true; invincibleTimer=120;
+    if(isInvincible) return;
+    
+    // 🛡️ SHIELD: Absorbe golpes
+    if (shieldActive) {
+      shieldHits--;
+      playSound('shieldHit');
+      createExplosion(player.x+player.w/2, player.y+player.h/2);
+      if (shieldHits <= 0) {
+        shieldActive = false;
+      }
+      updatePowerupIndicators();
+      return;
+    }
+    
+    lives--; isInvincible=true; invincibleTimer=120;
     createExplosion(player.x+player.w/2, player.y+player.h/2); playSound('explode'); player.x=W/2-player.w/2; player.y=H-95;
     if(lives<=0) showGameOver();
   }
@@ -591,6 +799,10 @@ window.addEventListener('DOMContentLoaded', () => {
     if(player.autoCD>0) player.autoCD--;
     if(keys['Space']&&player.cooldown<=0&&!isTouching) { pBullets.push({x:player.x+player.w/2-2,y:player.y,w:4,h:12,s:7}); player.cooldown=15; playSound('playerShoot'); }
     if(player.cooldown>0) player.cooldown--;
+
+    // ⚡ Actualizar power-ups
+    updatePowerups();
+    checkPowerupActivation();
 
     const phase = PHASES[currentPhaseIdx];
     if(!bossActive&&!transitioning&&currentBossIdx<phase.bosses.length&&score>=phase.bosses[currentBossIdx].threshold) startBoss();
@@ -817,6 +1029,39 @@ window.addEventListener('DOMContentLoaded', () => {
   function draw() {
     ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';for(let s of stars){ctx.beginPath();ctx.arc(s.x,s.y,s.s,0,Math.PI*2);ctx.fill();}
     if(!isInvincible||Math.floor(time*10)%2===0){if(imgs.player.complete&&imgs.player.naturalWidth>0)ctx.drawImage(imgs.player,player.x,player.y,player.w,player.h);else{ctx.fillStyle='#0af';ctx.fillRect(player.x,player.y,player.w,player.h);}}
+
+    // 🛡️ DIBUJAR ESCUDO
+    if (shieldActive) {
+      ctx.save();
+      ctx.globalAlpha = 0.5 + Math.sin(time * 10) * 0.2;
+      ctx.strokeStyle = '#00ff00';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(player.x + player.w/2, player.y + player.h/2, 45, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Glow effect
+      ctx.shadowColor = '#00ff00';
+      ctx.shadowBlur = 15;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 🤖 DIBUJAR DRONES
+    if (droneActive && drones.length > 0) {
+      drones.forEach(drone => {
+        ctx.fillStyle = '#00ffff';
+        ctx.beginPath();
+        ctx.arc(drone.x + 8, drone.y + 8, 8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Glow effect
+        ctx.shadowColor = '#00ffff';
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+    }
 
     const lifeSize = 25, padding = 8, startY = H - lifeSize;
     for(let i=0;i<lives;i++){if(imgs.player.complete&&imgs.player.naturalWidth>0)ctx.drawImage(imgs.player,10+i*(lifeSize+padding),startY,lifeSize,lifeSize);else{ctx.fillStyle='#0af';ctx.fillRect(10+i*(lifeSize+padding),startY,lifeSize,lifeSize);}}
