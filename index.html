@@ -247,6 +247,8 @@
     .powerup-indicator.shield { border-color: #00ff00; background: rgba(0,255,0,0.2); }
     .powerup-indicator.triple { border-color: #ff0000; background: rgba(255,0,0,0.2); }
     .powerup-indicator.drone { border-color: #00ffff; background: rgba(0,255,255,0.2); }
+    .powerup-indicator.rapid { border-color: #ffff00; background: rgba(255,255,0,0.2); }
+    .powerup-indicator.laser { border-color: #ff00ff; background: rgba(255,0,255,0.2); }
     @keyframes powerupPulse {
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.05); }
@@ -395,6 +397,14 @@ window.addEventListener('DOMContentLoaded', () => {
       const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
       o.type = 'sine'; o.frequency.setValueAtTime(800, t); o.frequency.linearRampToValueAtTime(1400, t + 0.4);
       g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.4); o.start(t); o.stop(t + 0.4);
+    } else if (type === 'powerupRapid') {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'square'; o.frequency.setValueAtTime(900, t); o.frequency.linearRampToValueAtTime(1500, t + 0.3);
+      g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.3); o.start(t); o.stop(t + 0.3);
+    } else if (type === 'powerupLaser') {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'sine'; o.frequency.setValueAtTime(1000, t); o.frequency.linearRampToValueAtTime(1800, t + 0.4);
+      g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.4); o.start(t); o.stop(t + 0.4);
     } else if (type === 'droneShoot') {
       const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
       o.type = 'square'; o.frequency.setValueAtTime(500, t); o.frequency.exponentialRampToValueAtTime(300, t + 0.15);
@@ -407,6 +417,10 @@ window.addEventListener('DOMContentLoaded', () => {
       const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
       o.type = 'sine'; o.frequency.setValueAtTime(500, t); o.frequency.linearRampToValueAtTime(1000, t + 0.2);
       g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.2); o.start(t); o.stop(t + 0.2);
+    } else if (type === 'laserShoot') {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'square'; o.frequency.setValueAtTime(1200, t); o.frequency.exponentialRampToValueAtTime(800, t + 0.1);
+      g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.1); o.start(t); o.stop(t + 0.1);
     }
   }
 
@@ -491,7 +505,11 @@ window.addEventListener('DOMContentLoaded', () => {
   let droneActive = false;
   let droneTimer = 0;
   let drones = [];
-  let powerups = []; // 🆕 Array de power-ups físicos
+  let rapidFireActive = false;  // 🆕 NUEVO
+  let rapidFireTimer = 0;  // 🆕 NUEVO
+  let laserActive = false;  // 🆕 NUEVO
+  let laserTimer = 0;  // 🆕 NUEVO
+  let powerups = [];
 
   // ⚡ FUNCIONES DE POWER-UPS
   function activateShield() {
@@ -519,6 +537,22 @@ window.addEventListener('DOMContentLoaded', () => {
     updatePowerupIndicators();
   }
 
+  // 🆕 FUNCIÓN: ACTIVAR RAPID FIRE
+  function activateRapidFire() {
+    rapidFireActive = true;
+    rapidFireTimer = 600; // 10 segundos a 60fps
+    playSound('powerupRapid');
+    updatePowerupIndicators();
+  }
+
+  // 🆕 FUNCIÓN: ACTIVAR LASER
+  function activateLaser() {
+    laserActive = true;
+    laserTimer = 600; // 10 segundos a 60fps
+    playSound('powerupLaser');
+    updatePowerupIndicators();
+  }
+
   function updatePowerupIndicators() {
     const container = document.getElementById('powerup-indicators');
     container.innerHTML = '';
@@ -538,6 +572,20 @@ window.addEventListener('DOMContentLoaded', () => {
       const div = document.createElement('div');
       div.className = 'powerup-indicator drone';
       div.innerHTML = `<span>🤖</span><span>DRONES</span><span class="powerup-timer">${(droneTimer/60).toFixed(1)}s</span>`;
+      container.appendChild(div);
+    }
+    // 🆕 INDICADOR RAPID FIRE
+    if (rapidFireActive) {
+      const div = document.createElement('div');
+      div.className = 'powerup-indicator rapid';
+      div.innerHTML = `<span>🔥</span><span>RAPID</span><span class="powerup-timer">${(rapidFireTimer/60).toFixed(1)}s</span>`;
+      container.appendChild(div);
+    }
+    // 🆕 INDICADOR LASER
+    if (laserActive) {
+      const div = document.createElement('div');
+      div.className = 'powerup-indicator laser';
+      div.innerHTML = `<span>🔦</span><span>LASER</span><span class="powerup-timer">${(laserTimer/60).toFixed(1)}s</span>`;
       container.appendChild(div);
     }
   }
@@ -569,6 +617,18 @@ window.addEventListener('DOMContentLoaded', () => {
       }
       updatePowerupIndicators();
     }
+    // 🆕 ACTUALIZAR RAPID FIRE
+    if (rapidFireActive) {
+      rapidFireTimer--;
+      if (rapidFireTimer <= 0) rapidFireActive = false;
+      updatePowerupIndicators();
+    }
+    // 🆕 ACTUALIZAR LASER
+    if (laserActive) {
+      laserTimer--;
+      if (laserTimer <= 0) laserActive = false;
+      updatePowerupIndicators();
+    }
   }
 
   // 🆕 FUNCIÓN: SPAWNAR POWER-UP FÍSICO
@@ -580,8 +640,8 @@ window.addEventListener('DOMContentLoaded', () => {
       h: 30,
       type: type,
       vy: 1.5,
-      icon: type === 'shield' ? '🛡️' : type === 'triple' ? '⚡' : '🤖',
-      color: type === 'shield' ? '#00ff00' : type === 'triple' ? '#ff0000' : '#00ffff'
+      icon: type === 'shield' ? '🛡️' : type === 'triple' ? '⚡' : type === 'drone' ? '🤖' : type === 'rapid' ? '🔥' : '🔦',
+      color: type === 'shield' ? '#00ff00' : type === 'triple' ? '#ff0000' : type === 'drone' ? '#00ffff' : type === 'rapid' ? '#ffff00' : '#ff00ff'
     });
   }
 
@@ -599,6 +659,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (p.type === 'shield') activateShield();
         else if (p.type === 'triple') activateTripleShot();
         else if (p.type === 'drone') activateDrone();
+        else if (p.type === 'rapid') activateRapidFire();  // 🆕
+        else if (p.type === 'laser') activateLaser();  // 🆕
         
         powerups.splice(i, 1);
         continue;
@@ -632,7 +694,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // 🆕 FUNCIÓN: CHECK SPAWN DE POWER-UPS POR JEFE
-  let powerupSpawned = {}; // Para evitar spawn múltiple
+  let powerupSpawned = {};
   function checkPowerupSpawn() {
     const phase = PHASES[currentPhaseIdx];
     const boss = phase.bosses[currentBossIdx];
@@ -655,6 +717,18 @@ window.addEventListener('DOMContentLoaded', () => {
     // 🤖 DRONE: Antes de Valefor (Fase 3, Boss 3) - score 33500
     if (currentPhaseIdx === 2 && currentBossIdx === 2 && score >= 33500 && !powerupSpawned[key]) {
       spawnPowerup(W/2 - 15, 100, 'drone');
+      powerupSpawned[key] = true;
+    }
+
+    // 🔥 RAPID FIRE: Antes de Paola (Fase 4, Boss 1) - score 38500
+    if (currentPhaseIdx === 3 && currentBossIdx === 0 && score >= 38500 && !powerupSpawned[key]) {
+      spawnPowerup(W/2 - 15, 100, 'rapid');
+      powerupSpawned[key] = true;
+    }
+
+    // 🔦 LASER: Durante Spike-Mike (Fase 4, Boss 2) - score 43500
+    if (currentPhaseIdx === 3 && currentBossIdx === 1 && score >= 43500 && !powerupSpawned[key]) {
+      spawnPowerup(W/2 - 15, 100, 'laser');
       powerupSpawned[key] = true;
     }
 
@@ -786,6 +860,7 @@ window.addEventListener('DOMContentLoaded', () => {
   function resetGame() {
     score=0; lives=3; extraLifeThreshold=5000; currentPhaseIdx=0; currentBossIdx=0; bossActive=false; transitioning=false; gameWon=false; isInvincible=false;
     shieldActive=false; shieldHits=4; tripleShotActive=false; tripleShotTimer=0; droneActive=false; droneTimer=0; drones=[];
+    rapidFireActive=false; rapidFireTimer=0; laserActive=false; laserTimer=0;  // 🆕 RESET NUEVOS POWER-UPS
     powerups = [];
     powerupSpawned = {};
     waveCount=0; enemies=[]; pBullets.length=0; aBullets.length=0; particles.length=0;
@@ -819,9 +894,34 @@ window.addEventListener('DOMContentLoaded', () => {
     if(score>=extraLifeThreshold) { lives++; extraLifeThreshold+=5000; playSound('extraLife'); }
     if(isInvincible) { invincibleTimer--; if(invincibleTimer<=0) isInvincible=false; }
     if(!isTouching) { if((keys['ArrowLeft']||keys['KeyA'])&&player.x>0) player.x-=player.speed; if((keys['ArrowRight']||keys['KeyD'])&&player.x<W-player.w) player.x+=player.speed; }
-    if(isTouching&&player.autoCD<=0) { pBullets.push({x:player.x+player.w/2-2,y:player.y,w:4,h:12,s:7}); player.autoCD=15; playSound('playerShoot'); }
+    
+    // 🆕 DISPARO CON RAPID FIRE Y LASER
+    if(isTouching && player.autoCD <= 0) {
+      // 🆕 LASER: Balas más rápidas y gruesas
+      if (laserActive) {
+        pBullets.push({x:player.x+player.w/2-3,y:player.y,w:6,h:18,s:12,isLaser:true});
+        playSound('laserShoot');
+        player.autoCD = rapidFireActive ? 5 : 15;  // 🆕 RAPID FIRE reduce cooldown
+      } else {
+        pBullets.push({x:player.x+player.w/2-2,y:player.y,w:4,h:12,s:7});
+        playSound('playerShoot');
+        player.autoCD = rapidFireActive ? 5 : 15;  // 🆕 RAPID FIRE: 5 frames (12 FPS) en lugar de 15 (4 FPS)
+      }
+    }
     if(player.autoCD>0) player.autoCD--;
-    if(keys['Space']&&player.cooldown<=0&&!isTouching) { pBullets.push({x:player.x+player.w/2-2,y:player.y,w:4,h:12,s:7}); player.cooldown=15; playSound('playerShoot'); }
+    
+    if(keys['Space'] && player.cooldown <= 0 && !isTouching) {
+      // 🆕 LASER: Balas más rápidas y gruesas
+      if (laserActive) {
+        pBullets.push({x:player.x+player.w/2-3,y:player.y,w:6,h:18,s:12,isLaser:true});
+        playSound('laserShoot');
+        player.cooldown = rapidFireActive ? 5 : 15;
+      } else {
+        pBullets.push({x:player.x+player.w/2-2,y:player.y,w:4,h:12,s:7});
+        playSound('playerShoot');
+        player.cooldown = rapidFireActive ? 5 : 15;  // 🆕 RAPID FIRE: 5 frames (12 FPS)
+      }
+    }
     if(player.cooldown>0) player.cooldown--;
 
     updatePowerups();
@@ -1096,7 +1196,21 @@ window.addEventListener('DOMContentLoaded', () => {
       ctx.fillText(`JEFE: ${boss.type.toUpperCase()}`, W/2, boss._drawY+boss.h+35); ctx.textAlign = 'start';
     }
 
-    ctx.fillStyle='#ff0';for(let b of pBullets)ctx.fillRect(b.x,b.y,b.w,b.h);ctx.fillStyle='#f00';for(let b of aBullets)ctx.fillRect(b.x,b.y,b.w,b.h);
+    // 🆕 DIBUJAR BALAS (LASER MÁS GRUESAS)
+    ctx.fillStyle='#ff0';
+    for(let b of pBullets) {
+      if (b.isLaser) {
+        ctx.fillStyle = '#ff00ff';  // Laser color magenta
+        ctx.shadowColor = '#ff00ff';
+        ctx.shadowBlur = 10;
+      } else {
+        ctx.fillStyle = '#ff0';
+        ctx.shadowBlur = 0;
+      }
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+    }
+    ctx.shadowBlur = 0;
+    ctx.fillStyle='#f00';for(let b of aBullets)ctx.fillRect(b.x,b.y,b.w,b.h);
     for(let p of particles){ctx.fillStyle=p.col;ctx.globalAlpha=p.life/40;ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
     
     // 🆕 DIBUJAR POWER-UPS FÍSICOS
