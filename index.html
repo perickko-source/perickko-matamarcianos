@@ -51,7 +51,7 @@
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(90deg); } }
     .hidden { display: none !important; }
 
-    /* 📻 RADIO 80 Y 90 - POSICIÓN FIJA ARRIBA IZQUIERDA */
+    /* 📻 RADIO 80 Y 90 */
     .radio-container {
       position: fixed;
       top: 10px;
@@ -134,7 +134,7 @@
       pointer-events: none;
     }
 
-    /* 🎬 PANTALLA DE INTRO/CARGA */
+    /* 🎬 PANTALLA DE INTRO */
     #intro-screen {
       position: fixed;
       top: 0;
@@ -149,12 +149,10 @@
       z-index: 9999;
       transition: opacity 0.5s ease-out;
     }
-
     #intro-screen.hidden {
       opacity: 0;
       pointer-events: none;
     }
-
     .intro-image {
       width: 400px;
       max-width: 90vw;
@@ -164,12 +162,10 @@
       box-shadow: 0 10px 40px rgba(0,0,0,0.5);
       animation: introImagePulse 2s ease-in-out infinite;
     }
-
     @keyframes introImagePulse {
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.02); }
     }
-
     .intro-container {
       position: absolute;
       bottom: 50px;
@@ -179,7 +175,6 @@
       max-width: 90%;
       text-align: center;
     }
-
     .intro-text {
       color: #ecf0f1;
       font-size: 1.1rem;
@@ -187,7 +182,6 @@
       font-weight: bold;
       text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
     }
-
     .intro-bar-container {
       width: 100%;
       height: 8px;
@@ -196,7 +190,6 @@
       overflow: hidden;
       margin-bottom: 10px;
     }
-
     .intro-bar {
       height: 100%;
       width: 0%;
@@ -205,23 +198,19 @@
       transition: width 0.1s linear;
       animation: introBarGlow 1.5s ease-in-out infinite;
     }
-
     @keyframes introBarGlow {
       0%, 100% { box-shadow: 0 0 5px #f1c40f; }
       50% { box-shadow: 0 0 15px #f1c40f; }
     }
-
     .intro-percentage {
       color: #f1c40f;
       font-size: 1.2rem;
       font-weight: bold;
     }
-
     .intro-dots {
       display: inline-block;
       animation: introDots 1.5s infinite;
     }
-
     @keyframes introDots {
       0%, 20% { content: ''; }
       40% { content: '.'; }
@@ -240,7 +229,6 @@
       z-index: 100;
       pointer-events: none;
     }
-
     .powerup-indicator {
       background: rgba(0,0,0,0.7);
       border: 2px solid;
@@ -256,16 +244,13 @@
       align-items: center;
       gap: 8px;
     }
-
     .powerup-indicator.shield { border-color: #00ff00; background: rgba(0,255,0,0.2); }
     .powerup-indicator.triple { border-color: #ff0000; background: rgba(255,0,0,0.2); }
     .powerup-indicator.drone { border-color: #00ffff; background: rgba(0,255,255,0.2); }
-
     @keyframes powerupPulse {
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.05); }
     }
-
     .powerup-timer {
       font-size: 12px;
       opacity: 0.8;
@@ -274,7 +259,7 @@
 </head>
 <body>
 
-  <!-- 🎬 PANTALLA DE INTRO/CARGA -->
+  <!-- 🎬 PANTALLA DE INTRO -->
   <div id="intro-screen">
     <img src="portada.png" alt="Cargando juego..." class="intro-image" onerror="this.style.display='none'; document.querySelector('.intro-text').textContent='⚠️ Error al cargar portada.png';">
     <div class="intro-container">
@@ -286,7 +271,7 @@
     </div>
   </div>
 
-  <!-- 📻 RADIO 80 Y 90 AUDIO -->
+  <!-- 📻 RADIO AUDIO -->
   <audio id="radio-audio" preload="none" crossorigin="anonymous">
     <source src="https://stream.zeno.fm/ndhkmuknva0uv" type="audio/mpeg">
   </audio>
@@ -321,7 +306,7 @@
     <button id="retry-btn">REINTENTAR</button>
   </div>
 
-  <!-- 📻 BOTÓN RADIO (arriba izquierda) -->
+  <!-- 📻 BOTÓN RADIO -->
   <div class="radio-container">
     <button id="radio-btn" title="Escuchar 80 y 90 Radio">
       <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgqvizWNyyqSmA1V6SOmns4wLWw849mHxRjABDTG0o2iyoHbsDPc9nc0rQW4iW6bfpIQLNn6pOgPlWsygdsuMury7g3ss1yJwDOJY1kHXyQwi53Lp9cyIMduU3NzUVaeme8n6V3_yhhGMEIb5XrCmuBejA6FoE5Uyt9ZmNYAqCxqhFmJf2wA9DpTtz9xg/s640/s80y90.png" 
@@ -418,6 +403,10 @@ window.addEventListener('DOMContentLoaded', () => {
       const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
       o.type = 'sawtooth'; o.frequency.setValueAtTime(400, t); o.frequency.exponentialRampToValueAtTime(200, t + 0.2);
       g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.2); o.start(t); o.stop(t + 0.2);
+    } else if (type === 'powerupCollect') {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'sine'; o.frequency.setValueAtTime(500, t); o.frequency.linearRampToValueAtTime(1000, t + 0.2);
+      g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.2); o.start(t); o.stop(t + 0.2);
     }
   }
 
@@ -427,24 +416,17 @@ window.addEventListener('DOMContentLoaded', () => {
   let radioEnabled = false;
   let radioLoading = false;
 
-  // 📻 EVENT LISTENER PARA RADIO
   radioBtn.addEventListener('click', function(e) {
     e.preventDefault();
     e.stopPropagation();
     if (radioLoading) return;
-    
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-    
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     radioEnabled = !radioEnabled;
-    
     if (radioEnabled) {
       radioLoading = true;
       radioBtn.classList.add('loading');
       radioAudio.pause();
       radioAudio.currentTime = 0;
-      
       const playPromise = radioAudio.play();
       if (playPromise !== undefined) {
         playPromise.then(() => {
@@ -452,7 +434,7 @@ window.addEventListener('DOMContentLoaded', () => {
           radioBtn.classList.remove('loading');
           radioBtn.classList.add('playing');
         }).catch(error => {
-          console.error('Error al reproducir radio:', error);
+          console.error('Error radio:', error);
           radioEnabled = false;
           radioLoading = false;
           radioBtn.classList.remove('loading', 'playing');
@@ -467,15 +449,12 @@ window.addEventListener('DOMContentLoaded', () => {
   // 🎬 VARIABLES DE INTRO
   let introScreenShown = sessionStorage.getItem('introScreenShown');
 
-  // 🎬 FUNCIÓN: MOSTRAR PANTALLA DE INTRO (solo primera vez)
   function showIntroScreen() {
     if (introScreenShown === 'true') {
       document.getElementById('intro-screen').classList.add('hidden');
       return;
     }
-
     sessionStorage.setItem('introScreenShown', 'true');
-
     const introBar = document.getElementById('intro-bar');
     const introPercentage = document.getElementById('intro-percentage');
     const introDots = document.querySelector('.intro-dots');
@@ -483,7 +462,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const duration = 10000;
     const interval = 50;
     const increment = 100 / (duration / interval);
-
     const introInterval = setInterval(() => {
       progress += increment;
       if (progress >= 100) {
@@ -493,20 +471,15 @@ window.addEventListener('DOMContentLoaded', () => {
           document.getElementById('intro-screen').classList.add('hidden');
         }, 300);
       }
-
       introBar.style.width = progress + '%';
       introPercentage.textContent = Math.round(progress) + '%';
     }, interval);
-
     let dots = 0;
     const dotsInterval = setInterval(() => {
       dots = (dots + 1) % 4;
       introDots.textContent = '.'.repeat(dots);
     }, 300);
-
-    setTimeout(() => {
-      clearInterval(dotsInterval);
-    }, duration);
+    setTimeout(() => clearInterval(dotsInterval), duration);
   }
 
   // ⚡ VARIABLES DE POWER-UPS
@@ -518,6 +491,7 @@ window.addEventListener('DOMContentLoaded', () => {
   let droneActive = false;
   let droneTimer = 0;
   let drones = [];
+  let powerups = []; // 🆕 Array de power-ups físicos
 
   // ⚡ FUNCIONES DE POWER-UPS
   function activateShield() {
@@ -529,14 +503,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
   function activateTripleShot() {
     tripleShotActive = true;
-    tripleShotTimer = 480; // 8 segundos a 60fps
+    tripleShotTimer = 480;
     playSound('powerupTriple');
     updatePowerupIndicators();
   }
 
   function activateDrone() {
     droneActive = true;
-    droneTimer = 480; // 8 segundos a 60fps
+    droneTimer = 480;
     drones = [
       { x: player.x - 40, y: player.y + 20, shootTimer: 0 },
       { x: player.x + player.w, y: player.y + 20, shootTimer: 0 }
@@ -548,21 +522,18 @@ window.addEventListener('DOMContentLoaded', () => {
   function updatePowerupIndicators() {
     const container = document.getElementById('powerup-indicators');
     container.innerHTML = '';
-
     if (shieldActive) {
       const div = document.createElement('div');
       div.className = 'powerup-indicator shield';
       div.innerHTML = `<span>🛡️</span><span>ESCUDO</span><span class="powerup-timer">${shieldHits}/${shieldMaxHits}</span>`;
       container.appendChild(div);
     }
-
     if (tripleShotActive) {
       const div = document.createElement('div');
       div.className = 'powerup-indicator triple';
       div.innerHTML = `<span>⚡</span><span>TRIPLE</span><span class="powerup-timer">${(tripleShotTimer/60).toFixed(1)}s</span>`;
       container.appendChild(div);
     }
-
     if (droneActive) {
       const div = document.createElement('div');
       div.className = 'powerup-indicator drone';
@@ -572,41 +543,26 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   function updatePowerups() {
-    // Actualizar Triple Shot
     if (tripleShotActive) {
       tripleShotTimer--;
-      if (tripleShotTimer <= 0) {
-        tripleShotActive = false;
-      }
+      if (tripleShotTimer <= 0) tripleShotActive = false;
       updatePowerupIndicators();
     }
-
-    // Actualizar Drones
     if (droneActive) {
       droneTimer--;
       if (droneTimer <= 0) {
         droneActive = false;
         drones = [];
       } else {
-        // Actualizar posición de drones
         drones[0].x = player.x - 40;
         drones[0].y = player.y + 20;
         drones[1].x = player.x + player.w;
         drones[1].y = player.y + 20;
-
-        // Drones disparan automáticamente
         drones.forEach((drone, i) => {
           drone.shootTimer++;
           if (drone.shootTimer >= 20) {
             drone.shootTimer = 0;
-            pBullets.push({
-              x: drone.x + 2,
-              y: drone.y,
-              w: 4,
-              h: 12,
-              s: 7,
-              isDrone: true
-            });
+            pBullets.push({ x: drone.x + 2, y: drone.y, w: 4, h: 12, s: 7, isDrone: true });
             playSound('droneShoot');
           }
         });
@@ -615,31 +571,103 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function checkPowerupActivation() {
+  // 🆕 FUNCIÓN: SPAWNAR POWER-UP FÍSICO
+  function spawnPowerup(x, y, type) {
+    powerups.push({
+      x: x,
+      y: y,
+      w: 30,
+      h: 30,
+      type: type,
+      vy: 1.5,
+      icon: type === 'shield' ? '🛡️' : type === 'triple' ? '⚡' : '🤖',
+      color: type === 'shield' ? '#00ff00' : type === 'triple' ? '#ff0000' : '#00ffff'
+    });
+  }
+
+  // 🆕 FUNCIÓN: ACTUALIZAR POWER-UPS FÍSICOS
+  function updatePhysicalPowerups() {
+    for (let i = powerups.length - 1; i >= 0; i--) {
+      let p = powerups[i];
+      p.y += p.vy;
+
+      // Colisión con jugador
+      if (rectInt(p, player)) {
+        playSound('powerupCollect');
+        createExplosion(p.x + p.w/2, p.y + p.h/2);
+        
+        if (p.type === 'shield') activateShield();
+        else if (p.type === 'triple') activateTripleShot();
+        else if (p.type === 'drone') activateDrone();
+        
+        powerups.splice(i, 1);
+        continue;
+      }
+
+      // Eliminar si sale de pantalla
+      if (p.y > H) {
+        powerups.splice(i, 1);
+      }
+    }
+  }
+
+  // 🆕 FUNCIÓN: DIBUJAR POWER-UPS FÍSICOS
+  function drawPhysicalPowerups() {
+    powerups.forEach(p => {
+      // Círculo de 30px diámetro (radio 15px)
+      ctx.beginPath();
+      ctx.arc(p.x + p.w/2, p.y + p.h/2, 15, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = 0.7;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Icono en el centro
+      ctx.font = '18px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(p.icon, p.x + p.w/2, p.y + p.h/2);
+    });
+  }
+
+  // 🆕 FUNCIÓN: CHECK SPAWN DE POWER-UPS POR JEFE
+  let powerupSpawned = {}; // Para evitar spawn múltiple
+  function checkPowerupSpawn() {
     const phase = PHASES[currentPhaseIdx];
     const boss = phase.bosses[currentBossIdx];
-
     if (!boss) return;
 
-    // 🛡️ SHIELD: Antes de Manoli (Fase 3, Boss 1) - score 26000
-    if (currentPhaseIdx === 2 && currentBossIdx === 0 && score >= 25500 && !shieldActive && !bossActive) {
-      activateShield();
+    const key = `${currentPhaseIdx}-${currentBossIdx}`;
+
+    // 🛡️ SHIELD: Antes de Manoli (Fase 3, Boss 1) - score 25500
+    if (currentPhaseIdx === 2 && currentBossIdx === 0 && score >= 25500 && !powerupSpawned[key]) {
+      spawnPowerup(W/2 - 15, 100, 'shield');
+      powerupSpawned[key] = true;
     }
 
     // ⚡ TRIPLE SHOT: Durante Nandors (Fase 3, Boss 2) - score 30000
-    if (currentPhaseIdx === 2 && currentBossIdx === 1 && score >= 30000 && score < 30500 && !tripleShotActive && bossActive) {
-      activateTripleShot();
+    if (currentPhaseIdx === 2 && currentBossIdx === 1 && score >= 30000 && !powerupSpawned[key]) {
+      spawnPowerup(W/2 - 15, 100, 'triple');
+      powerupSpawned[key] = true;
     }
 
     // 🤖 DRONE: Antes de Valefor (Fase 3, Boss 3) - score 33500
-    if (currentPhaseIdx === 2 && currentBossIdx === 2 && score >= 33500 && !droneActive && !bossActive) {
-      activateDrone();
+    if (currentPhaseIdx === 2 && currentBossIdx === 2 && score >= 33500 && !powerupSpawned[key]) {
+      spawnPowerup(W/2 - 15, 100, 'drone');
+      powerupSpawned[key] = true;
     }
 
-    // ⚡ TRIPLE SHOT + 🤖 DRONE: Durante Cebollo (Fase 4, Boss 3) - score 48000
-    if (currentPhaseIdx === 3 && currentBossIdx === 2 && score >= 48000 && score < 48500 && bossActive) {
-      if (!tripleShotActive) activateTripleShot();
-      if (!droneActive) activateDrone();
+    // ⚡ TRIPLE + 🤖 DRONE: Durante Cebollo (Fase 4, Boss 3) - score 48000
+    if (currentPhaseIdx === 3 && currentBossIdx === 2 && score >= 48000) {
+      if (!powerupSpawned[`${key}-triple`]) {
+        spawnPowerup(W/2 - 30, 100, 'triple');
+        powerupSpawned[`${key}-triple`] = true;
+      }
+      if (!powerupSpawned[`${key}-drone`]) {
+        spawnPowerup(W/2 + 15, 100, 'drone');
+        powerupSpawned[`${key}-drone`] = true;
+      }
     }
   }
 
@@ -719,7 +747,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const phaseSpeed = 0.8 + (currentPhaseIdx * 0.2);
     const rand = Math.random();
     let bType = rand < 0.50 ? 'normal' : rand < 0.65 ? 'circle_left' : rand < 0.75 ? 'zigzag' : rand < 0.85 ? 'pendulum' : 'circle_right';
-    
     for(let i=0; i<3; i++) {
       let type = phase.enemies[Math.floor(Math.random()*phase.enemies.length)], e = {w:70, h:70, alive:true, type, behavior:bType};
       if(bType==='normal') {
@@ -759,6 +786,8 @@ window.addEventListener('DOMContentLoaded', () => {
   function resetGame() {
     score=0; lives=3; extraLifeThreshold=5000; currentPhaseIdx=0; currentBossIdx=0; bossActive=false; transitioning=false; gameWon=false; isInvincible=false;
     shieldActive=false; shieldHits=4; tripleShotActive=false; tripleShotTimer=0; droneActive=false; droneTimer=0; drones=[];
+    powerups = [];
+    powerupSpawned = {};
     waveCount=0; enemies=[]; pBullets.length=0; aBullets.length=0; particles.length=0;
     boss={x:0,y:0,w:140,h:140,hp:0,maxHp:0,type:'',phase:'enter',pattern:'oscillator',state:'idle',dirX:1,sweep:0,angle:0,shootTimer:0,spiralAngle:0,fanAngle:0,cycleTimer:0,cycleIdx:0,rngTimer:0,rngPattern:'oscillator',wallGap:7, _drawX:0, _drawY:0};
     player.x=W/2-32; player.y=H-95;
@@ -772,19 +801,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
   function playerHit() {
     if(isInvincible) return;
-    
-    // 🛡️ SHIELD: Absorbe golpes
     if (shieldActive) {
       shieldHits--;
       playSound('shieldHit');
       createExplosion(player.x+player.w/2, player.y+player.h/2);
-      if (shieldHits <= 0) {
-        shieldActive = false;
-      }
+      if (shieldHits <= 0) shieldActive = false;
       updatePowerupIndicators();
       return;
     }
-    
     lives--; isInvincible=true; invincibleTimer=120;
     createExplosion(player.x+player.w/2, player.y+player.h/2); playSound('explode'); player.x=W/2-player.w/2; player.y=H-95;
     if(lives<=0) showGameOver();
@@ -800,9 +824,9 @@ window.addEventListener('DOMContentLoaded', () => {
     if(keys['Space']&&player.cooldown<=0&&!isTouching) { pBullets.push({x:player.x+player.w/2-2,y:player.y,w:4,h:12,s:7}); player.cooldown=15; playSound('playerShoot'); }
     if(player.cooldown>0) player.cooldown--;
 
-    // ⚡ Actualizar power-ups
     updatePowerups();
-    checkPowerupActivation();
+    checkPowerupSpawn();
+    updatePhysicalPowerups();
 
     const phase = PHASES[currentPhaseIdx];
     if(!bossActive&&!transitioning&&currentBossIdx<phase.bosses.length&&score>=phase.bosses[currentBossIdx].threshold) startBoss();
@@ -850,7 +874,6 @@ window.addEventListener('DOMContentLoaded', () => {
       else if(boss.phase==='fight'){
         let isEnraged = boss.pattern==='frenetic' && boss.hp < boss.maxHp*0.2;
         let speedM = isEnraged ? 1.5 : 1;
-
         switch(boss.pattern) {
           case 'oscillator':
             boss.angle += 0.03*speedM;
@@ -996,7 +1019,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if(!bossActive&&!transitioning&&enemies.some(e=>e.alive&&e.behavior==='normal')){alienShootTimer++;if(alienShootTimer>60){const t=enemies.filter(e=>e.alive&&e.behavior==='normal'&&e.y>0&&e.y<H-100);if(t.length){const s=t[Math.floor(Math.random()*t.length)];aBullets.push({x:s.x+s.w/2-2,y:s.y+s.h,w:4,h:12,s:4});playSound('alienShoot');}alienShootTimer=0;}}
 
     for(let i=pBullets.length-1;i>=0;i--){pBullets[i].y-=pBullets[i].s;if(pBullets[i].y<0)pBullets.splice(i,1);}
-    
     for(let i=aBullets.length-1;i>=0;i--){
       let b=aBullets[i];
       if(b.vx!==undefined||b.vy!==undefined){
@@ -1039,8 +1061,6 @@ window.addEventListener('DOMContentLoaded', () => {
       ctx.beginPath();
       ctx.arc(player.x + player.w/2, player.y + player.h/2, 45, 0, Math.PI * 2);
       ctx.stroke();
-      
-      // Glow effect
       ctx.shadowColor = '#00ff00';
       ctx.shadowBlur = 15;
       ctx.stroke();
@@ -1054,8 +1074,6 @@ window.addEventListener('DOMContentLoaded', () => {
         ctx.beginPath();
         ctx.arc(drone.x + 8, drone.y + 8, 8, 0, Math.PI * 2);
         ctx.fill();
-        
-        // Glow effect
         ctx.shadowColor = '#00ffff';
         ctx.shadowBlur = 10;
         ctx.fill();
@@ -1071,7 +1089,6 @@ window.addEventListener('DOMContentLoaded', () => {
       let img=imgs[boss.type];
       if(img&&img.complete&&img.naturalWidth>0) ctx.drawImage(img, boss._drawX, boss._drawY, boss.w, boss.h);
       else { ctx.fillStyle=fallbackColors[boss.type]; ctx.fillRect(boss._drawX, boss._drawY, boss.w, boss.h); }
-      
       ctx.fillStyle = '#333'; ctx.fillRect(boss._drawX+10, boss._drawY+boss.h+10, boss.w-20, 10);
       ctx.fillStyle = boss.hp > boss.maxHp*0.3 ? '#0f0' : '#f00';
       ctx.fillRect(boss._drawX+10, boss._drawY+boss.h+10, Math.max(0, (boss.hp/boss.maxHp)*(boss.w-20)), 10);
@@ -1081,13 +1098,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
     ctx.fillStyle='#ff0';for(let b of pBullets)ctx.fillRect(b.x,b.y,b.w,b.h);ctx.fillStyle='#f00';for(let b of aBullets)ctx.fillRect(b.x,b.y,b.w,b.h);
     for(let p of particles){ctx.fillStyle=p.col;ctx.globalAlpha=p.life/40;ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
+    
+    // 🆕 DIBUJAR POWER-UPS FÍSICOS
+    drawPhysicalPowerups();
+    
     const ph=PHASES[currentPhaseIdx]||PHASES[0];ctx.fillStyle='#fff';ctx.font='bold 16px monospace';ctx.fillText(`SCORE: ${score}`,10,20);ctx.fillText(`${ph.name}`,W/2-40,20);const nb=currentBossIdx<ph.bosses.length?ph.bosses[currentBossIdx]:null;ctx.fillText(`NEXT: ${nb?nb.type.toUpperCase():'END'}`,W-150,20);
   }
 
   function loop(){if(!gameRunning)return;update();draw();requestAnimationFrame(loop);}
   document.getElementById('overlay').addEventListener('click',()=>{initAudio();gameRunning=true;document.getElementById('overlay').classList.add('hidden');loop();});
 
-  // 🎬 INICIAR PANTALLA DE INTRO AL CARGAR LA PÁGINA
   showIntroScreen();
 });
 </script>
